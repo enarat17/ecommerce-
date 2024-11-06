@@ -1,64 +1,133 @@
 const mongoose = require("mongoose");
-const review = require("./ReviewModel");
+const slugify = require("slugify");
 
-const imagesschema = mongoose.Schema({
-  path: { type: String, required: true },
-});
-const productschema = mongoose.Schema(
+const productSchema = new mongoose.Schema(
   {
-    name: {
+    title_AR: {
       type: String,
-      required: true,
-      unique: true,
+      required: [true, "a product must have a title"],
+      trim: true
     },
-    description: {
+    title_EN: {
       type: String,
-      required: true,
+      required: [true, "a product must have a title"],
+      trim: true
     },
-    category: {
+    description_AR: {
       type: String,
-      required: true,
+      trim: true,
+      required: [true, "a product must have a description"]
+    },
+    description_EN: {
+      type: String,
+      trim: true,
+      required: [true, "a product must have a description"]
+    },
+    body_AR: {
+      type: String,
+      required: [true, "an product must have an arabic body"]
+    },
+    body_EN: {
+      type: String,
+      required: [true, "an product must have an english body"]
     },
     price: {
       type: Number,
       required: true,
+      validate: {
+        validator: function(value) {
+          return value > 0;
+        },
+        message: "Price must be greater than zero"
+      }
     },
-    rating: {
+    file: {
+      type: String,
+      required: true
+    },
+    category: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    coverImage: {
+      type: String,
+      required: [true, "a product must have a cover image"]
+    },
+    video: String,
+    slug: String,
+    discount: {
       type: Number,
-      default: 5,
+      validate: {
+        validator: function(val) {
+          return val < this.price;
+        },
+        message: "Discount price should be below origianl price"
+      }
     },
-    Number_rating: {
+    Sucessful_Purchases: { type: Number, default: 0 },
+    views: { type: Number, default: 0 },
+    ratingsAverage: {
       type: Number,
       default: 1,
+      min: [1, "Rating must be above 1.0"],
+      max: [5, "Rating must be below 5.0"],
+      set: val => Math.round(val * 10) / 10
     },
-    count: {
+    ratingsQuantity: {
       type: Number,
-      required: true,
+      default: 0
     },
-    attrs: [{ key: { type: String }, value: [{ type: String }] }],
-    images: [imagesschema],
-    sales: {
-      type: Number,
-      default: 0,
-    },
-    reviews: [{ type: mongoose.Schema.Types.ObjectId, ref: review }],
+    createdAt: {
+      type: Date,
+      default: Date.now()
+    }
   },
   {
-    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
   }
 );
 
-productschema.pre(/^find/, function (next) {
-  this.populate("reviews");
+productSchema.index({ slug: 1 });
+
+productSchema.pre("save", function(next) {
+  this.slug = slugify(this.title_EN, { lower: true });
   next();
 });
-productschema.index(
-  { name: "text", description: "text" },
-  { name: "TextIndex" }
-);
 
-productschema.index({ "attrs.key": 1, "attrs.value": 1 });
+// Pre-save middleware to apply discount to file prices
+productSchema.pre("save", function(next) {
+  if (this.isModified("discount")) {
+    const discountFactor = (100 - this.discount) / 100;
 
-const Product = mongoose.model("Product", productschema);
+    if (this.basic_file && this.basic_file.price) {
+      this.basic_file.price = Math.round(
+        this.basic_file.price * discountFactor
+      );
+    }
+    if (this.open_file && this.open_file.price) {
+      this.open_file.price = Math.round(this.open_file.price * discountFactor);
+    }
+    if (this.editable_file && this.editable_file.price) {
+      this.editable_file.price = Math.round(
+        this.editable_file.price * discountFactor
+      );
+    }
+  }
+  next();
+});
+
+productSchema.virtual("reviews", {
+  ref: "Review",
+  foreignField: "product",
+  localField: "_id"
+});
+
+productSchema.methods.incrementViews = async function() {
+  this.views += 1;
+  await this.save();
+};
+const Product = mongoose.model("Product", productSchema);
 
 module.exports = Product;

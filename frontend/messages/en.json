@@ -1,0 +1,31 @@
+{
+    "client-list": {
+        "title": "Our Clients"
+    },
+    "team":{
+        "title":"Founders",
+        "subTitle":"Team members"
+    },
+    "join-us":{
+        "title":"Apply for a job at our united for F&A Consultants",
+        "subTitle":"Send us your info and we will contact you if there is a vacancy"
+    },
+    "about-us":{
+        "title":"About Company",
+        "vision":"Our vision",
+        "mission":"Our mission",
+        "goals":"Our goals"
+    },
+    "contact-us":{
+        "title":"Reach us on our social media platforms",
+        "Email":"Email",
+        "Facebook":"Facebook",
+        "FacebookMessage":"Message us on facebook",
+        "Whatsapp":"Whatsapp",
+        "WhatsappMessage":"send us a message on Whatsapp",
+        "Phone":"Phone",
+        "PhoneMessage":"call us on +966",
+        "InquiryTitle":"Send us your inquiry and we will get back to you within 24 hours",
+        "CompanyInfo":"Company Info"
+    }
+}

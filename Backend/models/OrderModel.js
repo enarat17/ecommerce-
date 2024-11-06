@@ -1,58 +1,37 @@
 const mongoose = require("mongoose");
-const user = require("../models/UserModel");
 
-const orderschema = mongoose.Schema(
-  {
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      ref: user,
-    },
-    orderTotal: {
-      itemsCount: { type: Number, required: true },
-      cartSubtotal: { type: Number, required: true },
-    },
-    cartItems: [
-      {
-        name: { type: String, required: true },
-        price: { type: Number, required: true },
-        image: { path: { type: String, required: true } },
-        quantity: { type: Number, required: true },
-        count: { type: Number, required: true },
+const orderSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.ObjectId, ref: "User", required: true },
+  products: [
+    {
+      product: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product",
+        required: true
       },
-    ],
-    paymentMethod: {
-      type: String,
-      required: true,
-      default: "on delevierd",
-    },
-    transactionResult: {
-      status: { type: String },
-      createTime: { type: String },
-      amount: { type: Number },
-    },
-    isPaid: {
-      type: Boolean,
-      required: true,
-      default: false,
-    },
-    paidAt: {
-      type: Date,
-    },
-    isDelivered: {
-      type: Boolean,
-      required: true,
-      default: false,
-    },
-    deliveredAt: {
-      type: Date,
-    },
+      version: {
+        type: String,
+        required: [true, "Version is required"]
+      },
+      price: {
+        type: Number,
+        required: [true, "Price is required"]
+      },
+      document: {
+        type: String,
+        required: [true, "Document is required"]
+      }
+    }
+  ],
+  totalPrice: { type: Number, required: true },
+  coupon: {
+    type: mongoose.Schema.ObjectId,
+    ref: "Coupon",
+    required: false
   },
-  {
-    timestamps: true,
-  }
-);
+  discountApplied: { type: Number, required: false },
+  createdAt: { type: Date, default: Date.now }
+});
 
-const order = mongoose.model("order", orderschema);
-
-module.exports = order;
+const Order = mongoose.model("Order", orderSchema);
+module.exports = Order;

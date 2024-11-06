@@ -1,19 +1,18 @@
-const express = require('express')
-const router = express.Router()
-const { verifyIsLoggedIn, verifyIsAdmin } = require('../middleware/verifycookie')
-const {getUserOrders, getOrder, createOrder, updateOrderToPaid, updateOrderToDelivered, getOrders, getOrderForAnalysis} = require("../controllers/orderController")
+const express = require("express");
+const orderControllers = require("../controllers/orderControllers");
+const authControllers = require("../controllers/authControllers");
 
-// user routes
-router.use(verifyIsLoggedIn)
-router.get("/", getUserOrders)
-router.get("/user/:id", getOrder);
-router.post("/", createOrder);
-router.put("/paid/:id", updateOrderToPaid);
+const router = express.Router();
 
-// admin routes
-router.use(verifyIsAdmin)
-router.put("/delivered/:id", updateOrderToDelivered);
-router.get("/admin", getOrders);
-router.get("/analysis/:date", getOrderForAnalysis);
+router.use(authControllers.protect, authControllers.restrictTo("user"));
 
-module.exports = router
+router.post("/apply-coupon", orderControllers.applyCoupon);
+
+router.post(
+  "/checkout",
+  orderControllers.validateCoupon,
+  orderControllers.calculateCartTotal,
+  orderControllers.checkout
+);
+
+module.exports = router;
