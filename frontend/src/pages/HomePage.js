@@ -1,22 +1,17 @@
-import CatogeryCard from "../components/CatogeryCard";
-import Slider from "../components/Slider";
+import HomePageComponent from "./components/HomePageComponent";
+import { useSelector } from "react-redux";
+import axios from "axios";
 
-import { Row, Container } from "react-bootstrap";
-
-function HomePage() {
-  const CatogoryofProduct = ["Cam", "phones ", "shirts", "monitors", "wires"];
-  return (
-    <>
-      <Slider />
-      <Container>
-        <Row xs={1} md={2} className="g-4 mt-3">
-          {CatogoryofProduct.map((item, index) => (
-            <CatogeryCard key={index} item={item} index={index} />
-          ))}
-        </Row>
-      </Container>
-    </>
-  );
+const getBestsellers = async () => {
+    const { data } = await axios.get("/api/products/bestsellers");
+    return data;
 }
+
+const HomePage = () => {
+
+    const { categories } = useSelector((state) => state.getCategories);
+
+  return <HomePageComponent categories={categories} getBestsellers={getBestsellers} />;
+};
 
 export default HomePage;

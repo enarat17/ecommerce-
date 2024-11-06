@@ -1,47 +1,39 @@
-import { createStore } from "redux";
-import { combineReducers, applyMiddleware } from "redux";
-import { thunk } from "redux-thunk";
-import { composeWithDevTools } from "@redux-devtools/extension";
-import { cartreducer } from "./reducters/cartreducer";
-import { userreducer } from "./reducters/usersreducer";
-import { get_categories } from "./reducters/categoris_reducer";
+import { createStore, combineReducers, applyMiddleware } from "redux";
+import { composeWithDevTools } from "redux-devtools-extension";
+import thunk from "redux-thunk";
 
-const userinformation = localStorage.getItem("userinfo")
-  ? JSON.stringify(localStorage.getItem("userinfo"))
-  : sessionStorage.getItem("userinfo")
-  ? JSON.stringify(sessionStorage.getItem("userinfo"))
-  : {};
+import { cartReducer } from "./reducers/cartReducers";
+import { userRegisterLoginReducer } from './reducers/userReducers';
+import { getCategoriesReducer } from "./reducers/categoryReducers";
+import { adminChatReducer } from "./reducers/adminChatReducers";
 
-const cartinformation = localStorage.getItem("cart")
-  ? JSON.parse(localStorage.getItem("cart"))
-  : [];
-const reducers = combineReducers({
-  cart: cartreducer,
-  user: userreducer,
-  all_category: get_categories, // Add your category reducer here
-});
-const intialstate = {
-  cart: {
-    cartitems: cartinformation,
-    itemscounts: cartinformation
-      ? cartinformation.reduce(
-          (Quantity, item) => Number(item.Quantity) + Quantity,
-          0
-        )
-      : 0,
-    cartsubtotal: cartinformation
-      ? cartinformation.reduce(
-          (price, item) => price + Number(item.price) * Number(item.Quantity),
-          0
-        )
-      : 0,
-  },
-  user: { userregester: userinformation },
-};
-const store = createStore(
-  reducers,
-  intialstate,
-  composeWithDevTools(applyMiddleware(thunk))
-);
+const reducer = combineReducers({
+    cart: cartReducer,
+    userRegisterLogin: userRegisterLoginReducer,
+    getCategories: getCategoriesReducer, 
+    adminChat: adminChatReducer,
+})
+
+const cartItemsInLocalStorage = localStorage.getItem("cart") ? JSON.parse(localStorage.getItem("cart")) : [];
+
+const userInfoInLocalStorage = localStorage.getItem("userInfo")
+? JSON.parse(localStorage.getItem("userInfo"))
+: sessionStorage.getItem("userInfo")
+? JSON.parse(sessionStorage.getItem("userInfo"))
+: {}
+
+const INITIAL_STATE = {
+    cart: {
+        cartItems: cartItemsInLocalStorage,
+        itemsCount: cartItemsInLocalStorage ? cartItemsInLocalStorage.reduce((quantity, item) => Number(item.quantity) + quantity, 0) : 0,
+        cartSubtotal: cartItemsInLocalStorage ? cartItemsInLocalStorage.reduce((price, item) => price + item.price * item.quantity, 0) : 0
+    },
+    userRegisterLogin: { userInfo: userInfoInLocalStorage }
+}
+
+const middleware = [thunk];
+const store = createStore(reducer, INITIAL_STATE, composeWithDevTools(applyMiddleware(...middleware)))
+
+
 
 export default store;

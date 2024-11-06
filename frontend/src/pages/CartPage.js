@@ -1,24 +1,15 @@
-import { useSelector } from "react-redux";
-import Cartpagecomponant from "./components/Cartpagecomponant";
-import { useDispatch } from "react-redux";
-import { addtocart } from "../redux/action/cartactions";
-import { delete_item_action } from "../redux/action/cartactions";
-function CartPage() {
-  const dispatch = useDispatch();
-  const cart_info = useSelector((state) => state.cart);
-  console.log(cart_info);
-  const delete_item = (productid, Quantity, price) => {
-    console.log(productid, Quantity, price);
-    dispatch(delete_item_action(productid, Quantity, price));
-  };
-  return (
-    <Cartpagecomponant
-      cart_info={cart_info}
-      dispatch={dispatch}
-      addtocart={addtocart}
-      delete_item={delete_item}
-    />
-  );
-}
+import CartPageComponent from "./components/CartPageComponent";
+
+import { useSelector, useDispatch } from "react-redux";
+import { addToCart, removeFromCart } from "../redux/actions/cartActions";
+
+const CartPage = () => {
+
+    const cartItems = useSelector((state) => state.cart.cartItems);
+    const cartSubtotal = useSelector((state) => state.cart.cartSubtotal);
+    const reduxDispatch = useDispatch();
+
+  return <CartPageComponent addToCart={addToCart} removeFromCart={removeFromCart} cartItems={cartItems} cartSubtotal={cartSubtotal} reduxDispatch={reduxDispatch} />;
+};
 
 export default CartPage;

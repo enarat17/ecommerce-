@@ -1,18 +1,13 @@
-import Userorderpagecomp from "../components/Userorderpagecomp";
-
+import UserOrdersPageComponent from "./components/UserOrdersPageComponent";
 import axios from "axios";
 
-const get_orders = async () => {
-  const { data } = await axios.get("http://localhost:5000/api/v1/orders", {
-    withCredentials: true, // This line ensures cookies are sent with the request
-  });
-  return data;
-};
-
-function UserOrdersPage() {
-  return (
-    <Userorderpagecomp get_orders={get_orders}/>
-  );
+const getOrders = async () => {
+    const { data } = await axios.get("/api/orders");
+    return data;
 }
+
+const UserOrdersPage = () => {
+  return <UserOrdersPageComponent getOrders={getOrders} />;
+};
 
 export default UserOrdersPage;

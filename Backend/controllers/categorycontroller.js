@@ -1,8 +1,7 @@
-const category = require("../modules/categorymodule");
-const Category = require("../modules/categorymodule");
+const Category = require("../models/CategoryModel");
 const mongoose = require("mongoose");
 
-exports.getcategory = async (req, res, next) => {
+exports.getCategories = async (req, res, next) => {
   try {
     const category_data = await Category.find({}).sort({ nmae: 1 }).orFail();
 
@@ -14,7 +13,7 @@ exports.getcategory = async (req, res, next) => {
   }
 };
 
-exports.postcategory = async (req, res, next) => {
+exports.newCategory = async (req, res, next) => {
   try {
     const data = req.body;
 
@@ -36,7 +35,7 @@ exports.postcategory = async (req, res, next) => {
   }
 };
 
-exports.deletecategory = async (req, res, next) => {
+exports.deleteCategory = async (req, res, next) => {
   try {
     const categoryexist = await Category.findOne({
       name: decodeURIComponent(req.params.category),
@@ -50,7 +49,7 @@ exports.deletecategory = async (req, res, next) => {
   }
 };
 
-exports.postattrs = async (req, res, next) => {
+exports.saveAttr = async (req, res, next) => {
   const { key, value, choosencategory } = req.body;
   if ((!key, !value, !choosencategory)) {
     res.send("key , value , categoryname  are required");
