@@ -1,36 +1,22 @@
-const express = require("express");
-const userController = require("../controllers/userControllers");
-const authController = require("../controllers/authControllers");
+const express = require('express')
+const router = express.Router()
+const { verifyIsLoggedIn, verifyIsAdmin } = require("../middleware/verifyAuthToken");
+const {getUsers, registerUser, loginUser, updateUserProfile, getUserProfile, writeReview, getUser, updateUser, deleteUser} = require("../controllers/userController")
 
-const router = express.Router();
+router.post("/register", registerUser)
+router.post("/login", loginUser)
 
-router.post("/signup", authController.signup);
-router.post("/login", authController.login);
-router.get("/logout", authController.logout);
+// user logged in routes:
+router.use(verifyIsLoggedIn);
+router.put("/profile", updateUserProfile);
+router.get('/profile/:id', getUserProfile)
+router.post('/review/:productId', writeReview)
 
-//PASSWORD AND USER SETTINGS
-router.post("/forgotPassword", authController.forgotPassword);
-router.patch("/resetPassword/:token", authController.resetPassword);
+// admin routes:
+router.use(verifyIsAdmin);
+router.get("/", getUsers)
+router.get("/:id", getUser);
+router.put('/:id', updateUser)
+router.delete('/:id', deleteUser)
 
-router.use(authController.protect);
-
-router.patch("/updateMyPassword", authController.updatePassword);
-router.get("/me", userController.getMe);
-router.delete("/deleteMe", userController.deleteMe);
-
-router.get("/purchases", userController.getPurchases);
-
-//ADMIN OPERATIONS FOR USERS
-router.use(authController.restrictTo("admin"));
-
-router
-  .route("/")
-  .get(userController.getAllUsers)
-  .post(userController.createUser);
-
-router
-  .route("/:id")
-  .patch(userController.updateUser)
-  .delete(userController.deleteUser);
-
-module.exports = router;
+module.exports = router

@@ -1,312 +1,311 @@
-const record_per_page = require("../config/pagenation");
 const Product = require("../models/ProductModel");
-const category = require("../models/CategoryModel");
-const path = require("path");
-const { v4: uuidv4 } = require("uuid");
-const fs = require("fs");
-const upload_dir = path.resolve(
-  __dirname,
-  "../../frontend",
-  "public",
-  "images",
-  "productsphoto"
-);
-const imageValidation = require("../utils/validation_upload");
+const recordsPerPage = require("../config/pagination");
+const imageValidate = require("../utils/imageValidate");
 
-exports.getProducts = async (req, res, next) => {
+const getProducts = async (req, res, next) => {
   try {
     let query = {};
-    let query_condtion = false;
-    let price_option = {};
-    let rating_option = {};
+    let queryCondition = false;
 
+    let priceQueryCondition = {};
     if (req.query.price) {
-      query_condtion = true;
-      price_option = { price: { $lte: Number(req.query.price) } };
+      queryCondition = true;
+      priceQueryCondition = { price: { $lte: Number(req.query.price) } };
     }
-
+    let ratingQueryCondition = {};
     if (req.query.rating) {
-      query_condtion = true;
-      rating_option = { rating: { $in: req.query.rating.split(",") } };
+      queryCondition = true;
+      ratingQueryCondition = { rating: { $in: req.query.rating.split(",") } };
     }
-    let category_condtion = {};
-    let categoryname = req.params.categoryname || "";
-    if (categoryname) {
-      query_condtion = true;
-      let category_name = categoryname.replace(",", "/");
-      var regEx = new RegExp("^" + category_name);
-      category_condtion = { category: regEx };
+    let categoryQueryCondition = {};
+    const categoryName = req.params.categoryName || "";
+    if (categoryName) {
+      queryCondition = true;
+      let a = categoryName.replaceAll(",", "/");
+      var regEx = new RegExp("^" + a);
+      categoryQueryCondition = { category: regEx };
     }
     if (req.query.category) {
-      query_condtion = true;
-      let category_name_array = req.query.category.split(",").map((item) => {
+      queryCondition = true;
+      let a = req.query.category.split(",").map((item) => {
         if (item) return new RegExp("^" + item);
       });
-      category_condtion = {
-        category: { $in: category_name_array },
+      categoryQueryCondition = {
+        category: { $in: a },
       };
     }
-
-    let attrs_query_condtion = [];
+    let attrsQueryCondition = [];
     if (req.query.attrs) {
-      attrs_query_condtion = req.query.attrs.split(",").reduce((acc, item) => {
+      // attrs=RAM-1TB-2TB-4TB,color-blue-red
+      // [ 'RAM-1TB-4TB', 'color-blue', '' ]
+      attrsQueryCondition = req.query.attrs.split(",").reduce((acc, item) => {
         if (item) {
-          let a1 = item.split("-");
-          let values = [...a1];
-          values.shift();
-          let a2 = {
-            attrs: { $elemMatch: { key: a1[0], value: { $in: values } } },
+          let a = item.split("-");
+          let values = [...a];
+          values.shift(); // removes first item
+          let a1 = {
+            attrs: { $elemMatch: { key: a[0], value: { $in: values } } },
           };
-          acc.push(a2);
+          acc.push(a1);
+          // console.dir(acc, { depth: null })
           return acc;
         } else return acc;
       }, []);
-      query_condtion = true;
+      //   console.dir(attrsQueryCondition, { depth: null });
+      queryCondition = true;
     }
-    const searchkey = req.params.searchkey || "";
-    let searchkey_option = {};
-    if (searchkey) {
-      query_condtion = true;
-      const regex = new RegExp(searchkey);
-      // searchkey_option = { $regex: regex };
 
-      searchkey_option = {
-        name: { $regex: regex },
+    //pagination
+    const pageNum = Number(req.query.pageNum) || 1;
+
+    // sort by name, price etc.
+    let sort = {};
+    const sortOption = req.query.sort || "";
+    if (sortOption) {
+      let sortOpt = sortOption.split("_");
+      sort = { [sortOpt[0]]: Number(sortOpt[1]) };
+    }
+
+    const searchQuery = req.params.searchQuery || "";
+    let searchQueryCondition = {};
+    let select = {};
+    if (searchQuery) {
+      queryCondition = true;
+      searchQueryCondition = { $text: { $search: searchQuery } };
+      select = {
+        score: { $meta: "textScore" },
       };
+      sort = { score: { $meta: "textScore" } };
     }
 
-    if (query_condtion) {
+    if (queryCondition) {
       query = {
         $and: [
-          price_option,
-          rating_option,
-          category_condtion,
-          searchkey_option,
-          ...attrs_query_condtion,
+          priceQueryCondition,
+          ratingQueryCondition,
+          categoryQueryCondition,
+          searchQueryCondition,
+          ...attrsQueryCondition,
         ],
       };
     }
 
-    const pagenum = req.query.pagenum * 1 || 1;
-    let sort = {};
-    const sortOption = req.query.sort || "";
-    if (sortOption) {
-      const SortOptions = req.query.sort.split("_");
-      sort = { [SortOptions[0]]: Number(SortOptions[1]) };
-    }
-
-    const total_products = await Product.countDocuments(query);
-    const all_prosuct = await Product.find(query)
-      .skip(record_per_page * (pagenum - 1))
+    const totalProducts = await Product.countDocuments(query);
+    const products = await Product.find(query)
+      .select(select)
+      .skip(recordsPerPage * (pageNum - 1))
       .sort(sort)
-      .limit(record_per_page);
-    res.status(200).json({
-      length: all_prosuct.length,
-      total_products: total_products,
-      pagenum: pagenum,
-      num_of_links: Math.ceil(total_products / record_per_page),
-      all_prosuct,
+      .limit(recordsPerPage);
+
+    res.json({
+      products,
+      pageNum,
+      paginationLinksNumber: Math.ceil(totalProducts / recordsPerPage),
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getProductById = async (req, res, next) => {
+  try {
+    const product = await Product.findById(req.params.id)
+      .populate("reviews")
+      .orFail();
+    res.json(product);
   } catch (err) {
     next(err);
   }
 };
 
-exports.getProductById = async (req, res, next) => {
+const getBestsellers = async (req, res, next) => {
   try {
-    const spacefic_product = await Product.findById(
-      req.params.productid
-    ).orFail();
-
-    res.status(200).json({
-      data: spacefic_product,
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-exports.getBestsellers = async (req, res, next) => {
-  try {
-    const bestseller = await Product.aggregate([
+    const products = await Product.aggregate([
+      { $sort: { category: 1, sales: -1 } },
       {
-        $sort: { category: 1, sales: -1 },
+        $group: { _id: "$category", doc_with_max_sales: { $first: "$$ROOT" } },
       },
-
-      { $group: { _id: "$category", max_sales: { $first: "$$ROOT" } } },
-      { $replaceWith: "$max_sales" },
-
-      { $project: { _id: 1, name: 1, description: 1, images: 1, category: 1 } },
+      { $replaceWith: "$doc_with_max_sales" },
+      { $match: { sales: { $gt: 0 } } },
+      { $project: { _id: 1, name: 1, images: 1, category: 1, description: 1 } },
       { $limit: 3 },
     ]);
-
-    res.status(200).json({
-      data: bestseller,
-    });
+    res.json(products);
   } catch (err) {
     next(err);
   }
 };
-///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-exports.adminGetProducts = async (req, res, next) => {
+const adminGetProducts = async (req, res, next) => {
   try {
-    const adminproduct = await Product.find({})
+    const products = await Product.find({})
       .sort({ category: 1 })
-      .select("name price category")
-      .orFail();
-    res.status(200).json({
-      data: adminproduct,
-    });
+      .select("name price category");
+    return res.json(products);
   } catch (err) {
     next(err);
   }
 };
 
-exports.adminDeleteProduct = async (req, res, next) => {
-  try {
-    const which_delet = await Product.deleteOne({
-      _id: req.params.id,
-    }).orFail();
-
-    res.status(200).json({
-      message: "product deleted",
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-exports.adminCreateProduct = async (req, res, next) => {
-  try {
-    const newone = new Product();
-    const { name, description, category, price, attribute, count } = req.body;
-    newone.name = name;
-    newone.description = description;
-    newone.category = category;
-    newone.price = price;
-    newone.count = count;
-    if (attribute.length > 0) {
-      attribute.map((attr) => {
-        newone.attrs.push(attr);
-      });
-    }
-    await newone.save();
-    res.status(201).json({
-      message: "product created",
-      data: newone,
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-exports.adminUpdateProduct = async (req, res, next) => {
+const adminDeleteProduct = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id).orFail();
-    const { name, description, category, price, attribute, count } = req.body;
-    product.name = name || product.name;
-    product.description = description || product.description;
-    product.category = category || product.category;
-    product.price = price || product.price;
-    product.count = count || product.count;
-    if (attribute.length > 0) {
-      product.attrs = [];
-      attribute.map((attr) => {
-        product.attrs.push(attr);
+    await product.remove();
+    res.json({ message: "product removed" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const adminCreateProduct = async (req, res, next) => {
+  try {
+    const product = new Product();
+    const { name, description, count, price, category, attributesTable } =
+      req.body;
+    product.name = name;
+    product.description = description;
+    product.count = count;
+    product.price = price;
+    product.category = category;
+    if (attributesTable.length > 0) {
+      attributesTable.map((item) => {
+        product.attrs.push(item);
       });
-    } else {
-      product.attrs = product.attrs;
     }
     await product.save();
-    res.status(200).json({
-      message: "product updated",
-      data: product,
+
+    res.json({
+      message: "product created",
+      productId: product._id,
     });
   } catch (err) {
     next(err);
   }
 };
 
-exports.adminUpload = async (req, res, next) => {
+const adminUpdateProduct = async (req, res, next) => {
   try {
-    console.log(!req.files);
-    console.log(req.files.images);
-    if (!req.files || !!req.files.images === false) {
-      return res.status(400).json({
-        message: "no file uploaded",
+    const product = await Product.findById(req.params.id).orFail();
+    const { name, description, count, price, category, attributesTable } =
+      req.body;
+    product.name = name || product.name;
+    product.description = description || product.description;
+    product.count = count || product.count;
+    product.price = price || product.price;
+    product.category = category || product.category;
+    if (attributesTable.length > 0) {
+      product.attrs = [];
+      attributesTable.map((item) => {
+        product.attrs.push(item);
       });
-    }
-    const product_id = req.query.productid;
-    const product_witch_update = await Product.findById(product_id).orFail();
-
-    const validate = imageValidation(req.files.images);
-    if (validate.error) {
-      return res.status(400).json({
-        error: validate.error,
-        message: "invalid file type",
-      });
-    }
-
-    let imagearray = [];
-    if (Array.isArray(req.files.images)) {
-      imagearray = req.files.images;
     } else {
-      imagearray.push(req.files.images);
+      product.attrs = [];
+    }
+    await product.save();
+    res.json({
+      message: "product updated",
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const adminUpload = async (req, res, next) => {
+    if (req.query.cloudinary === "true") {
+        try {
+            let product = await Product.findById(req.query.productId).orFail();
+            product.images.push({ path: req.body.url });
+            await product.save();
+        } catch (err) {
+            next(err);
+        }
+       return 
+    }
+  try {
+    if (!req.files || !!req.files.images === false) {
+      return res.status(400).send("No files were uploaded.");
     }
 
-    for (let i = 0; i < imagearray.length; i++) {
-      const image = imagearray[i];
-      let filename = uuidv4() + path.extname(image.name);
-      var upload_image_path = upload_dir + "/" + filename;
+    const validateResult = imageValidate(req.files.images);
+    if (validateResult.error) {
+      return res.status(400).send(validateResult.error);
+    }
 
-      product_witch_update.images.push({
-        path: "/images/productsphoto/" + filename,
-      });
+    const path = require("path");
+    const { v4: uuidv4 } = require("uuid");
+    const uploadDirectory = path.resolve(
+      __dirname,
+      "../../frontend",
+      "public",
+      "images",
+      "products"
+    );
 
-      image.mv(upload_image_path, function (err) {
+    let product = await Product.findById(req.query.productId).orFail();
+
+    let imagesTable = [];
+    if (Array.isArray(req.files.images)) {
+      imagesTable = req.files.images;
+    } else {
+      imagesTable.push(req.files.images);
+    }
+
+    for (let image of imagesTable) {
+      var fileName = uuidv4() + path.extname(image.name);
+      var uploadPath = uploadDirectory + "/" + fileName;
+      product.images.push({ path: "/images/products/" + fileName });
+      image.mv(uploadPath, function (err) {
         if (err) {
-          return res.status(400).send(err.message);
+          return res.status(500).send(err);
         }
       });
     }
-
-    await product_witch_update.save();
-    return res.send("image uploaded successfully");
+    await product.save();
+    return res.send("Files uploaded!");
   } catch (err) {
     next(err);
   }
 };
 
-exports.adminDeleteProductImage = async (req, res, next) => {
+const adminDeleteProductImage = async (req, res, next) => {
+    const imagePath = decodeURIComponent(req.params.imagePath);
+    if (req.query.cloudinary === "true") {
+        try {
+           await Product.findOneAndUpdate({ _id: req.params.productId }, { $pull: { images: { path: imagePath } } }).orFail(); 
+            return res.end();
+        } catch(er) {
+            next(er);
+        }
+        return
+    }
   try {
-    const imagepath = decodeURIComponent(req.params.imagepath);
-    const system_image_path = path.resolve("../frontend/public") + imagepath;
-    console.log(system_image_path);
-    fs.unlink(system_image_path, (err) => {
+    const path = require("path");
+    const finalPath = path.resolve("../frontend/public") + imagePath;
+
+    const fs = require("fs");
+    fs.unlink(finalPath, (err) => {
       if (err) {
-        console.log(err);
+        res.status(500).send(err);
       }
     });
-    await Product.findByIdAndUpdate(
-      { _id: req.params.productid },
-      { $pull: { images: { path: imagepath } } }
-    );
-    return res.status(200).json({
-      message: "product image has removed from system and darabase",
-    });
+    await Product.findOneAndUpdate(
+      { _id: req.params.productId },
+      { $pull: { images: { path: imagePath } } }
+    ).orFail();
+    return res.end();
   } catch (err) {
     next(err);
   }
 };
-// exports.updateadminproduct = async (req, res, next) => {
-//   try {
-//     const which_update = await Product.findByIdAndUpdate(
-//       req.params.id,
-//       req.body,
-//       { new: true }
-//     ).orFail();
-//     res.send("product updated");
-//   } catch (err) {
-//     next(err);
-//   }
-// };
+
+module.exports = {
+  getProducts,
+  getProductById,
+  getBestsellers,
+  adminGetProducts,
+  adminDeleteProduct,
+  adminCreateProduct,
+  adminUpdateProduct,
+  adminUpload,
+  adminDeleteProductImage,
+};

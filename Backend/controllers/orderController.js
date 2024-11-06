@@ -1,132 +1,113 @@
-const Orders = require("../models/OrderModel");
+const Order = require("../models/OrderModel");
 const Product = require("../models/ProductModel");
+const ObjectId = require("mongodb").ObjectId;
 
-exports.getUserOrders = async (req, res, next) => {
-  try {
-    const orders = await Orders.find({ user: req.user._id });
-    res.status(200).json({
-      length: orders.length,
-      orders,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-exports.getOrder = async (req, res, next) => {
-  try {
-    const order_details = await Orders.findById(req.params.id).populate(
-      "user",
-      "-pass -isadmin -__v "
-    );
-    res.status(200).json({
-      order_details,
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-exports.createOrder = async (req, res, next) => {
-  try {
-    const { orderTotal, cartItems, paymentMethod } = req.body;
-    if (!(orderTotal && cartItems)) {
-      return res.send("orderTotal and cartItems are required");
+const getUserOrders = async (req, res, next) => {
+    try {
+        const orders = await Order.find({ user: ObjectId(req.user._id) });
+        res.send(orders);
+    } catch (error) {
+        next(error)
     }
-    let ids = cartItems.map((item) => {
-      return item.productid;
-    });
-    let quant = cartItems.map((item) => {
-      return Number(item.quantity);
-    });
+}
 
-    await Product.find({ _id: { $in: ids } }).then((products) =>
-      products.forEach(function (product, index) {
-        product.sales += quant[index];
-        product.save();
-      })
-    );
+const getOrder = async (req, res, next) => {
+    try {
+       const order = await Order.findById(req.params.id).populate("user", "-password -isAdmin -_id -__v -createdAt -updatedAt").orFail();
+        res.send(order);
+    } catch (err) {
+        next(err)
+    }
+}
 
-    const order = new Orders({
-      user: req.user._id,
-      orderTotal,
-      cartItems,
-      paymentMethod,
-    });
-    await order.save();
-    res.status(201).json({
-      order,
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-exports.updateOrderToPaid = async (req, res, next) => {
-  try {
-    const order = await Orders.findById(req.params.id).orFail();
-    order.isPaid = true;
-    order.paidAt = Date.now();
-    await order.save();
-    res.status(200).json({
-      order,
-    });
-  } catch (err) {
-    next(err);
-  }
-};
+const createOrder = async (req, res, next) => {
+    try {
+        const { cartItems, orderTotal, paymentMethod } = req.body;
+        if (!cartItems || !orderTotal || !paymentMethod) {
+            return res.status(400).send("All inputs are required");
+        }
 
-exports.getOrders = async (req, res, next) => {
-  try {
-    const orders = await Orders.find({})
-      .populate("user", "-pass -isadmin -__v ")
-      .sort({ paymentMethod: 1 });
-    res.status(200).json({
-      len: orders.length,
-      orders,
-    });
-  } catch (err) {
-    next(err);
-  }
-};
+        let ids = cartItems.map((item) => {
+            return item.productID;
+        })
+        let qty = cartItems.map((item) => {
+            return Number(item.quantity);
+        })
 
-exports.getOrderForAnalysis = async (req, res, next) => {
-  try {
-    const startDates = new Date(req.params.date);
-    startDates.setHours(0, 0, 0, 0);
-    const endDates = new Date(req.params.date);
-    endDates.setHours(23, 59, 59, 999);
-    const orders = await Orders.find({
-      createdAt: { $gte: startDates, $lte: endDates },
-    });
-    res.status(200).json({
-      len: orders.length,
-      orders,
-    });
-  } catch (err) {
-    next(err);
-  }
-};
+        await Product.find({ _id: { $in: ids } }).then((products) => {
+            products.forEach(function (product, idx) {
+                product.sales += qty[idx];
+                product.save();
+            })
+        })
 
-exports.updateOrderToDelivered = async (req, res, next) => {
-  try {
-    const order = await Orders.findById(req.params.id).orFail();
-    order.isDelivered = true;
-    order.deliveredAt = Date.now();
-    await order.save();
-    res.status(200).json({
-      order,
-    });
-  } catch (err) {
-    next(err);
-  }
-};
+        const order = new Order({
+            user: ObjectId(req.user._id),
+            orderTotal: orderTotal,
+            cartItems: cartItems,
+            paymentMethod: paymentMethod,
+        })
+        const createdOrder = await order.save();
+        res.status(201).send(createdOrder);
 
-exports.deleteorder = async (req, res, next) => {
-  try {
-    const order = await Orders.findById(req.params.id).orFail();
-    await order.deleteOne();
-    res.send("done deleting order");
-  } catch (err) {
-    next(err);
-  }
-};
+    } catch (err) {
+        next(err)
+    }
+}
+
+const updateOrderToPaid = async (req, res, next) => {
+    try {
+        const order = await Order.findById(req.params.id).orFail();
+        order.isPaid = true;
+        order.paidAt = Date.now();
+
+        const updatedOrder = await order.save();
+        res.send(updatedOrder);
+
+    } catch (err) {
+        next(err);
+    }
+}
+
+const updateOrderToDelivered = async (req, res, next) => {
+    try {
+       const order = await Order.findById(req.params.id).orFail();
+        order.isDelivered = true;
+        order.deliveredAt = Date.now();
+        const updatedOrder = await order.save();
+        res.send(updatedOrder);
+    } catch (err) {
+        next(err);
+    }
+}
+
+const getOrders = async (req, res, next) => {
+    try {
+        const orders = await Order.find({}).populate("user","-password").sort({ paymentMethod: "desc" });
+        res.send(orders);
+    } catch (err) {
+        next(err)
+    }
+}
+
+const getOrderForAnalysis = async (req, res, next) => {
+    try {
+        const start = new Date(req.params.date);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(req.params.date);
+        end.setHours(23, 59, 59, 999);
+
+        const order = await Order.find({
+            createdAt: {
+                $gte: start,
+                $lte: end,
+            }
+        }).sort({ createdAt: "asc" });
+        res.send(order);
+
+    } catch (err) {
+        next(err)
+    }
+}
+
+module.exports = {getUserOrders, getOrder, createOrder, updateOrderToPaid, updateOrderToDelivered, getOrders, getOrderForAnalysis}

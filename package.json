@@ -4,13 +4,14 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "test": "jest",
+    "test": "echo \"Error: no test specified\" && exit 1",
     "server-prod": "node server.js",
     "server-dev": "npx nodemon server.js",
     "client": "npm start --prefix ../frontend",
     "dev": "concurrently --kill-others-on-fail \"npm run server-dev\" \"npm run client\"",
     "seed:data": "node seeder/seeder",
-    "seed:data-d": "node seeder/seeder -d"
+    "seed:data-d": "node seeder/seeder -d",
+    "heroku-postbuild": "npm install --prefix frontend && npm run build --prefix frontend"
   },
   "author": "",
   "license": "ISC",
@@ -28,7 +29,9 @@
   },
   "devDependencies": {
     "concurrently": "^7.1.0",
-    "jest": "^29.0.3",
     "nodemon": "^2.0.15"
+  },
+  "engines": {
+      "node": "17.x"
   }
 }

@@ -1,207 +1,117 @@
-const Users = require("../models/UserModel");
+const User = require("../models/UserModel");
 const Review = require("../models/ReviewModel");
 const Product = require("../models/ProductModel");
-const objectid = require("mongodb").ObjectId;
-const { hashpass } = require("../utils/hashpass");
-const jwtwebtoken = require("../utils/jwt");
-const { passcompare } = require("../utils/hashpass");
-const jwt = require("jsonwebtoken");
+const { hashPassword, comparePasswords } = require("../utils/hashPassword");
+const generateAuthToken = require("../utils/generateAuthToken");
 
-exports.getUsers = async (req, res, next) => {
+const getUsers = async (req, res, next) => {
   try {
-    const users = await Users.find({})
-      .sort({ name: 1 })
-      .select("name lastname email isadmin ")
-      .orFail();
-    res.status(200).json({
-      users,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-exports.registerUser = async (req, res, next) => {
-  try {
-    const { name, lastname, email, pass, phone, address, isadmin } = req.body;
-
-    if (!(name && lastname && email && pass && address && phone)) {
-      throw new Error("name, lastname, email and password are required");
-    }
-
-    const new_user = await Users.findOne({ email });
-    if (new_user) {
-      throw new Error("email already exist");
-    }
-    const Hashpassword = hashpass(pass);
-    const user = await Users.create({
-      name,
-      lastname,
-      pass: Hashpassword,
-      email,
-      phone,
-      address,
-      isadmin,
-    });
-
-    return res
-      .cookie(
-        "access_token",
-        jwtwebtoken(
-          user._id,
-          user.name,
-          user.lastName,
-          user.email,
-          user.isadmin
-        ),
-        {
-          httpOnly: true,
-          secure: false,
-          sameSite: "strict",
-        }
-      )
-      .status(201)
-      .json({
-        message: "eamil is created",
-        user: {
-          _id: user._id,
-          name: user.name,
-          lastname: user.lastname,
-          email: user.email,
-          isadmin: user.isadmin,
-          phone: user.phone,
-          address: user.address,
-        },
-      });
+    const users = await User.find({}).select("-password");
+    return res.json(users);
   } catch (err) {
     next(err);
   }
 };
 
-// exports.loginuser = async (req, res, next) => {
-//   try {
-//     const { email, password, doNotLogout } = req.body;
-//     if (!(email && password)) {
-//       return res.status(400).send("all fields are required");
-//     }
-//     const user = await Users.findOne({ email }).orFail();
-//     const donepass = passcompare(password, user.pass);
-
-//     if (user && donepass) {
-//       // let cookie_option = {
-//       //   httpOnly: true,
-//       //   secure: true,
-//       //   sameSite: "strict",
-//       // };
-//       // if (doNotLogout) {
-//       //   cookie_option = {
-//       //     ...cookie_option,
-//       //     maxAge: 1000 * 60 * 60 * 24 * 7,
-//       //     expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
-//       //   };
-//       // }
-
-//       // const token = jwtwebtoken(
-//       //   user.name,
-//       //   user.lastname,
-//       //   user.phone,
-//       //   user.address,
-//       //   user.email,
-//       //   user.isadmin,
-//       //   user._id
-//       // );
-//       const token = jwt.sign(
-//         {
-//           name: user.name,
-//           lastname: user.lastname,
-//           email: user.email,
-//           isadmin: user.isadmin,
-//           _id: user._id,
-//           phone: user.phone,
-//           address: user.address,
-//         },
-//         process.env.JWT_SEC_KEY,
-//         {
-//           expiresIn: "7h",
-//         }
-//       );
-//       if (token) {
-//         res.cookie("usertoken", token, {
-//           expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
-//           httpOnly: true,
-//           sameSite: "strict",
-//         });
-//       }
-
-//       return res.status(200).json({
-//         message: "success_login",
-//         doNotLogout: doNotLogout,
-//         token: token,
-//         user: {
-//           _id: user._id,
-//           name: user.name,
-//           lastname: user.lastname,
-//           email: user.email,
-//           isadmin: user.isadmin,
-//         },
-//       });
-//     } else {
-//       return res.status(400).send("email or password is wrong");
-//     }
-//   } catch (err) {
-//     next(err);
-//   }
-// };
-
-exports.loginUser = async (req, res, next) => {
+const registerUser = async (req, res, next) => {
   try {
-    const { email, password, doNotLogout } = req.body;
-    if (!(email && password)) {
+    const { name, lastName, email, password } = req.body;
+    if (!(name && lastName && email && password)) {
       return res.status(400).send("All inputs are required");
     }
 
-    const user = await Users.findOne({ email });
-    const donepass = passcompare(password, user.pass);
-    if (user && donepass) {
-      // to do: compare passwords
-      let cookieParams = {
-        httpOnly: true,
-        secure: false,
-        sameSite: "strict",
-      };
-
-      if (doNotLogout) {
-        cookieParams = { ...cookieParams, maxAge: 1000 * 60 * 60 * 24 * 7 }; // 1000=1ms
-      }
-      res.cookie("cookieName", "cookieValue", {
-        maxAge: 900000,
-        httpOnly: true,
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return res.status(400).send("user exists");
+    } else {
+      const hashedPassword = hashPassword(password);
+      const user = await User.create({
+        name,
+        lastName,
+        email: email.toLowerCase(),
+        password: hashedPassword,
       });
-
-      // const token = jwt.sign({ user: user._id }, process.env.JWT_SEC_KEY, {
-      //   expiresIn: "90h",
-      // });
-      //res.cookie("jwt", token, cookieParams);
-      return res
+      res
         .cookie(
           "access_token",
-          jwtwebtoken(
+          generateAuthToken(
             user._id,
             user.name,
             user.lastName,
             user.email,
-            user.isadmin
+            user.isAdmin
           ),
-          cookieParams
+          {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+          }
         )
+        .status(201)
         .json({
-          message: "success_login",
-          user: {
+          success: "User created",
+          userCreated: {
             _id: user._id,
             name: user.name,
             lastName: user.lastName,
             email: user.email,
-            isadmin: user.isadmin,
+            isAdmin: user.isAdmin,
+          },
+        });
+    }
+  } catch (err) {
+    next(err);
+  }
+};
+
+const loginUser = async (req, res, next) => {
+  try {
+    const { email, password, doNotLogout } = req.body;
+
+    if (!(email && password)) {
+      return res.status(400).send("All inputs are required");
+    }
+
+    // Fetch user including the password field
+    const user = await User.findOne({ email }).select("+password").orFail(new Error("User not found"));
+
+    if (!user.password) {
+      console.error("User's hashed password is missing in the database.");
+      return res.status(500).send("Server error: User's hashed password is missing.");
+    }
+
+    // Compare passwords
+    if (comparePasswords(password, user.password)) {
+      let cookieParams = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+      };
+
+      if (doNotLogout) {
+        cookieParams = { ...cookieParams, maxAge: 1000 * 60 * 60 * 24 * 7 };
+      }
+
+      return res
+        .cookie(
+          "access_token",
+          generateAuthToken(
+            user._id,
+            user.name,
+            user.lastName,
+            user.email,
+            user.isAdmin
+          ),
+          cookieParams
+        )
+        .json({
+          success: "user logged in",
+          userLoggedIn: {
+            _id: user._id,
+            name: user.name,
+            lastName: user.lastName,
+            email: user.email,
+            isAdmin: user.isAdmin,
             doNotLogout,
           },
         });
@@ -209,37 +119,37 @@ exports.loginUser = async (req, res, next) => {
       return res.status(401).send("wrong credentials");
     }
   } catch (err) {
+    console.error("Error in loginUser:", err.message);
     next(err);
   }
 };
 
-exports.updateUserProfile = async (req, res, next) => {
-  try {
-    const user = await Users.findById(req.user._id).orFail();
 
+
+const updateUserProfile = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id).orFail();
     user.name = req.body.name || user.name;
-    user.lastname = req.body.lastname || user.lastname;
-    //user.email = req.body.email || user.email;
-    user.address = req.body.address || user.address;
-    user.phone = req.body.phone || user.phone;
-    user.country = req.body.country || user.country;
-    user.city = req.body.city || user.city;
-    user.zipcode = req.body.zipcode || user.zipcode;
-    user.isadmin = user.isadmin;
-    if (req.body.pass !== user.pass) {
-      user.pass = hashpass(req.body.pass);
+    user.lastName = req.body.lastName || user.lastName;
+    user.phoneNumber = req.body.phoneNumber;
+    user.address = req.body.address;
+    user.country = req.body.country;
+    user.zipCode = req.body.zipCode;
+    user.city = req.body.city;
+    user.state = req.body.state;
+    if (req.body.password !== user.password) {
+      user.password = hashPassword(req.body.password);
     }
     await user.save();
-    res.status(200).json({
-      message: "profile updated",
-      user: {
+
+    res.json({
+      success: "user updated",
+      userUpdated: {
         _id: user._id,
         name: user.name,
-        lastname: user.lastname,
+        lastName: user.lastName,
         email: user.email,
-        isadmin: user.isadmin,
-        phone: user.phone,
-        address: user.address,
+        isAdmin: user.isAdmin,
       },
     });
   } catch (err) {
@@ -247,108 +157,107 @@ exports.updateUserProfile = async (req, res, next) => {
   }
 };
 
-exports.getUserProfile = async (req, res, next) => {
-  try {
-    const user = await Users.findById(req.params.id).orFail();
-    res.send(user);
-  } catch (er) {
-    next(err);
-  }
-};
-
-exports.writeReview = async (req, res, next) => {
-  try {
-    const { comment, rating } = req.body;
-    if (!(comment && rating)) {
-      return res.send("comment and rating are required");
+const getUserProfile = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.params.id).orFail();
+        return res.send(user);
+    } catch(err) {
+        next(err)
     }
-    let review_id = new objectid();
-    await Review.create([
-      {
-        _id: review_id,
-        user: {
-          _id: req.user._id,
-          name: req.user.name + " " + req.user.lastname,
-        },
-        comment,
-        rating,
-      },
-    ]);
-    console.log(req.params.product_id);
-    const product = await Product.findById(req.params.product_id).populate(
-      "reviews"
-    );
+}
 
-    const already_exiest = await product.reviews.find(
-      (r) => r.user._id.toString() === req.user._id.toString()
-    );
-    if (already_exiest) {
-      return res.status(400).send("you already review this product");
+const writeReview = async (req, res, next) => {
+    try {
+
+        const session = await Review.startSession();
+
+        // get comment, rating from request.body:
+        const { comment, rating } = req.body;
+        // validate request:
+        if (!(comment && rating)) {
+            return res.status(400).send("All inputs are required");
+        }
+
+        // create review id manually because it is needed also for saving in Product collection
+        const ObjectId = require("mongodb").ObjectId;
+        let reviewId = ObjectId();
+
+        session.startTransaction();
+        await Review.create([
+            {
+                _id: reviewId,
+                comment: comment,
+                rating: Number(rating),
+                user: { _id: req.user._id, name: req.user.name + " " + req.user.lastName },
+            }
+        ],{ session: session })
+
+        const product = await Product.findById(req.params.productId).populate("reviews").session(session);
+        
+        const alreadyReviewed = product.reviews.find((r) => r.user._id.toString() === req.user._id.toString());
+        if (alreadyReviewed) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).send("product already reviewed");
+        }
+
+        let prc = [...product.reviews];
+        prc.push({ rating: rating });
+        product.reviews.push(reviewId);
+        if (product.reviews.length === 1) {
+            product.rating = Number(rating);
+            product.reviewsNumber = 1;
+        } else {
+            product.reviewsNumber = product.reviews.length;
+            let ratingCalc = prc.map((item) => Number(item.rating)).reduce((sum, item) => sum + item, 0) / product.reviews.length;
+            product.rating = Math.round(ratingCalc)
+        }
+        await product.save();
+
+        await session.commitTransaction();
+        session.endSession();
+        res.send('review created')
+    } catch (err) {
+        await session.abortTransaction();
+        next(err)   
     }
-    let pro = [...product.reviews];
-    product.reviews.push(review_id);
+}
 
-    pro.push({ rating: rating });
-    if (product.reviews.length === 1) {
-      product.rating = rating * 1;
-      product.Number_rating = 1;
-    } else {
-      product.Number_rating = product.reviews.length;
-      product.rating =
-        pro
-          .map((item) => Number(item.rating))
-          .reduce((sum, item) => sum + item, 0) / product.reviews.length;
+const getUser = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.params.id).select("name lastName email isAdmin").orFail();
+        return res.send(user);
+    } catch (err) {
+       next(err); 
     }
-    await product.save();
-    res.send(product);
+}
 
-    //  res.status(201).send("review is creates");
-  } catch (err) {
-    next(err);
-  }
-};
+const updateUser = async (req, res, next) => {
+    try {
+       const user = await User.findById(req.params.id).orFail(); 
 
-exports.getUser = async (req, res, next) => {
-  try {
-    const user = await Users.findById(req.params.id).select("-pass").orFail();
-    res.send(user);
-  } catch (err) {
-    next(err);
-  }
-};
+        user.name = req.body.name || user.name;
+        user.lastName = req.body.lastName || user.lastName;
+        user.email = req.body.email || user.email;
+        user.isAdmin = req.body.isAdmin
 
-exports.updateUser = async (req, res, next) => {
-  try {
-    const user = await Users.findById(req.params.id).orFail();
-    user.name = req.body.name || user.name;
-    user.lastname = req.body.lastname || user.lastname;
-    user.email = req.body.email || user.email;
-    user.isadmin = req.body.isadmin || user.isadmin;
-    await user.save();
-    res.send("user is updated");
-  } catch (err) {
-    next(err);
-  }
-};
+        await user.save();
 
-exports.deleteUser = async (req, res, next) => {
-  try {
-    const user = await Users.findById(req.params.id).orFail();
-    await user.deleteOne();
-    res.send("user is deleted");
-  } catch (err) {
-    next(err);
-  }
-};
+        res.send("user updated");
 
-exports.restrectto = async (req, res, next) => {
-  try {
-    if (req.user.isadmin) {
-      next();
-    } else {
-      return res.status(401).send("you are not admin");
+    } catch (err) {
+       next(err); 
     }
-  } catch (err) {
-    next(err);
-  }
-};
+}
+
+const deleteUser = async (req, res, next) => {
+    try {
+       const user = await User.findById(req.params.id).orFail();
+       await user.remove(); 
+       res.send("user removed");
+    } catch (err) {
+        next(err);
+    }
+}
+
+module.exports = { getUsers, registerUser, loginUser, updateUserProfile, getUserProfile, writeReview, getUser, updateUser, deleteUser };

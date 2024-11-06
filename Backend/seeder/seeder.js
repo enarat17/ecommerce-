@@ -1,44 +1,52 @@
 require("dotenv").config();
-const mongoose = require("mongoose");
-
 const connectDB = require("../config/db");
-const category = require("../modules/categorymodule");
-const product = require("../modules/productmodule");
-const review = require("../modules/reviewmodule");
-const user = require("../modules/usermodule");
-const order = require("../modules/ordermodule");
-
-const categorydata = require("../seeder/category");
-const productdata = require("../seeder/product");
-const reviewsdata = require("../seeder/reviews");
-const userdata = require("../seeder/user");
-const ordersdata = require("../seeder/orders");
-
 connectDB();
 
-const importdata = async () => {
+const categoryData = require("./categories");
+const productData = require("./products");
+const reviewData = require("./reviews");
+const userData = require("./users");
+const orderData = require("./orders");
+
+const Category = require("../models/CategoryModel");
+const Product = require("../models/ProductModel");
+const Review = require("../models/ReviewModel");
+const User = require("../models/UserModel");
+const Order = require("../models/OrderModel");
+
+const importData = async () => {
   try {
-    await category.collection.dropIndexes();
-    await product.collection.dropIndexes();
+    await Category.collection.dropIndexes();
+    await Product.collection.dropIndexes();
 
-    await category.collection.deleteMany({});
-    await product.collection.deleteMany({});
-    await review.collection.deleteMany({});
-    await user.collection.deleteMany({});
-    await order.collection.deleteMany({});
+    await Category.collection.deleteMany({});
+    await Product.collection.deleteMany({});
+    await Review.collection.deleteMany({});
+    await User.collection.deleteMany({});
+    await Order.collection.deleteMany({});
 
-    await category.insertMany(categorydata);
-    await product.insertMany(productdata);
-    await review.insertMany(reviewsdata);
-    await user.insertMany(userdata);
-    await order.insertMany(ordersdata);
+    if (process.argv[2] !== "-d") {
+      await Category.insertMany(categoryData);
+      const reviews = await Review.insertMany(reviewData);
+      const sampleProducts = productData.map((product) => {
+        reviews.map((review) => {
+          product.reviews.push(review._id);
+        });
+        return { ...product };
+      });
+      await Product.insertMany(sampleProducts);
+      await User.insertMany(userData);
+      await Order.insertMany(orderData);
 
-    console.log("done inmporting ✔");
+      console.log("Seeder data imported successfully");
+      process.exit();
+      return
+    }
+    console.log("Seeder data deleted successfully");
     process.exit();
-  } catch (err) {
-    console.log(err);
-    console.log("write data to data base error 😨");
+  } catch (error) {
+    console.error("Error while proccessing seeder data", error);
     process.exit(1);
   }
 };
-importdata();
+importData();

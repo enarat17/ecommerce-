@@ -1,87 +1,83 @@
-const Category = require("../models/CategoryModel");
-const mongoose = require("mongoose");
+const Category = require("../models/CategoryModel")
 
-exports.getCategories = async (req, res, next) => {
-  try {
-    const category_data = await Category.find({}).sort({ nmae: 1 }).orFail();
-
-    res.status(200).json({
-      category_data,
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-exports.newCategory = async (req, res, next) => {
-  try {
-    const data = req.body;
-
-    if (!data) {
-      throw new Error("category daya is  required");
-    } else {
-      const category_exist = await Category.findOne({ name: req.body.name });
-      if (category_exist) {
-        res.status(400).send("there is category name like that ");
-      } else {
-        const category_created = await Category.create(req.body);
-        res.status(201).json({
-          category_created,
-        });
-      }
+const getCategories = async (req, res, next) => {
+    try {
+        const categories = await Category.find({}).sort({name: "asc"}).orFail()
+        res.json(categories)
+    } catch(error) {
+        next(error)
     }
-  } catch (err) {
-    next(err);
-  }
-};
+}
 
-exports.deleteCategory = async (req, res, next) => {
-  try {
-    const categoryexist = await Category.findOne({
-      name: decodeURIComponent(req.params.category),
-    }).orFail();
-    await categoryexist.deleteOne({ name: req.params.category });
-    res.status(200).json({
-      message: "category deleted done",
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-exports.saveAttr = async (req, res, next) => {
-  const { key, value, choosencategory } = req.body;
-  if ((!key, !value, !choosencategory)) {
-    res.send("key , value , categoryname  are required");
-  }
-  try {
-    const category_exist = await Category.findOne({
-      name: choosencategory,
-    }).orFail();
-    if (category_exist.attrs.length > 0) {
-      var key_is_not_exist = true;
-      category_exist.attrs.map((item, index) => {
-        if (item.key === key) {
-          key_is_not_exist = false;
-          var new_copy_of_category = [...category_exist.attrs[index].value];
-          new_copy_of_category.push(value);
-          var new_attr = [...new Set(new_copy_of_category)];
-          category_exist.attrs[index].value = new_attr;
+const newCategory = async (req, res, next) => {
+    try {
+        const {category} = req.body
+        if(!category) {
+            res.status(400).send("Category input is required")
         }
-      });
-
-      if (key_is_not_exist) {
-        category_exist.attrs.push({ key: key, value: [value] });
-      }
-    } else {
-      category_exist.attrs.push({ key: key, value: [value] });
+        const categoryExists = await Category.findOne({name: category})
+        if(categoryExists) {
+            res.status(400).send("Category already exists")
+        } else {
+            const categoryCreated = await Category.create({
+                name: category
+            })
+            res.status(201).send({categoryCreated: categoryCreated})
+        }
+    } catch (err) {
+        next(err)
     }
-    await category_exist.save();
-    let category_data = await Category.find({}).sort({ name: 1 });
-    return res.status(201).json({
-      category_data,
-    });
-  } catch (err) {
-    next(err);
-  }
-};
+}
+
+const deleteCategory = async (req, res, next) => {
+    // return res.send(req.params.category)
+    try {
+        if(req.params.category !== "Choose category") {
+            const categoryExists = await Category.findOne({
+                name: decodeURIComponent(req.params.category)
+            }).orFail()
+            await categoryExists.remove()
+            res.json({categoryDeleted: true})
+        }
+    } catch (err) {
+        next(err)
+    }
+}
+
+const saveAttr = async (req, res, next) => {
+    const {key, val, categoryChoosen} = req.body
+    if(!key || !val || !categoryChoosen) {
+        return res.status(400).send("All inputs are required")
+    }
+    try {
+        const category = categoryChoosen.split("/")[0]
+        const categoryExists = await Category.findOne({name: category}).orFail()
+        if(categoryExists.attrs.length > 0) {
+            // if key exists in the database then add a value to the key
+            var keyDoesNotExistsInDatabase = true
+            categoryExists.attrs.map((item, idx) => {
+                if(item.key === key) {
+                    keyDoesNotExistsInDatabase = false
+                    var copyAttributeValues = [...categoryExists.attrs[idx].value]
+                    copyAttributeValues.push(val)
+                    var newAttributeValues = [...new Set(copyAttributeValues)] // Set ensures unique values
+                    categoryExists.attrs[idx].value = newAttributeValues
+                }
+            })
+
+            if(keyDoesNotExistsInDatabase) {
+                categoryExists.attrs.push({key: key, value: [val]})
+            }
+        } else {
+            // push to the array
+            categoryExists.attrs.push({key: key, value: [val]})
+        }
+        await categoryExists.save()
+        let cat = await Category.find({}).sort({name: "asc"})
+        return res.status(201).json({categoriesUpdated: cat})
+    } catch(err) {
+        next(err)
+    }
+}
+
+module.exports = {getCategories, newCategory, deleteCategory, saveAttr}
