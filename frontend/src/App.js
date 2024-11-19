@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 // components:
 import HeaderComponent from "./components/HeaderComponent";
 import FooterComponent from "./components/FooterComponent";
+import NavigationBar from "./components/NavigationBar";
 
 //user components:
 import RoutesWithUserChatComponent from "./components/user/RoutesWithUserChatComponent";
@@ -34,12 +35,16 @@ import AdminOrderDetailsPage from "./pages/admin/AdminOrderDetailsPage";
 import AdminChatsPage from "./pages/admin/AdminChatsPage";
 import AdminAnalyticsPage from "./pages/admin/AdminAnalyticsPage";
 import ScrollToTop from "./utils/ScrollToTop";
+import { LanguageProvider } from "./context/LanguageContext";
 
 function App() {
+
   return (
+    <LanguageProvider>
     <BrowserRouter>
     <ScrollToTop />
-      <HeaderComponent />
+      <NavigationBar />
+      {/* <HeaderComponent /> */}
       <Routes>
         <Route element={<RoutesWithUserChatComponent />}>
           {/* publicly available routes: */}
@@ -93,8 +98,9 @@ function App() {
           <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
         </Route>
       </Routes>
-      <FooterComponent />
+      <FooterComponent  />
     </BrowserRouter>
+    </LanguageProvider>
   );
 }
 
