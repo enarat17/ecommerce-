@@ -6,6 +6,8 @@ import { Row, Container } from "react-bootstrap";
 import { LanguageContext } from "../../context/LanguageContext";
 import { useEffect, useState ,useContext} from "react";
 import MetaComponent from "../../components/MetaComponent";
+import Partners from "../../components/Parteners";
+import FeaturesSection from "../../components/Features";
 
 const HomePageComponent = ({ categories, getBestsellers }) => {
 
@@ -13,6 +15,10 @@ const HomePageComponent = ({ categories, getBestsellers }) => {
     const [bestSellers, setBestsellers] = useState([]);
     const [error, setError] = useState('');
     const { language } = useContext(LanguageContext);
+
+    function onCategoryClick(categoryName) {
+        window.location.href = `product-list/category/${categoryName}`;
+    }
     useEffect(() => {
         getBestsellers()
         .then((data) => {
@@ -38,7 +44,9 @@ const HomePageComponent = ({ categories, getBestsellers }) => {
         </Row>
         {error}
       </Container> */}
-      <CategoryGrid categories={mainCategories} language={language}  /> 
+      <CategoryGrid categories={mainCategories} language={language} onCategoryClick={onCategoryClick} /> 
+      <Partners language={language} /> 
+      <FeaturesSection language={language} />
     </>
   );
 };

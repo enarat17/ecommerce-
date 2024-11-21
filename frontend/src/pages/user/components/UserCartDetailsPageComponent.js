@@ -1,17 +1,58 @@
-import {
-  Container,
-  Row,
-  Col,
-  Form,
-  Alert,
-  ListGroup,
-  Button,
-} from "react-bootstrap";
-import CartItemComponent from "../../../components/CartItemComponent";
 
-import { useEffect, useState } from "react";
+import { ShoppingCart, CreditCard, MapPin, Phone, AlertTriangle, CheckCircle } from 'lucide-react';
+import CartItemComponent from "../../../components/CartItemComponent";
+import { LanguageContext } from "../../../context/LanguageContext";
+
+import { useEffect, useState ,useContext} from "react";
 
 import { useNavigate } from "react-router-dom";
+
+const translations = {
+  en: {
+    translation: {
+      cartDetails: 'Cart Details',
+      shipping: 'Shipping',
+      name: 'Name',
+      address: 'Address',
+      phone: 'Phone',
+      paymentMethod: 'Payment Method',
+      paypal: 'PayPal',
+      cashOnDelivery: 'Cash On Delivery (delivery may be delayed)',
+      notDelivered: 'Not Delivered',
+      notPaidYet: 'Not Paid Yet',
+      orderSummary: 'Order Summary',
+      itemsPrice: 'Items Price (after tax)',
+      shipping: 'Shipping',
+      tax: 'Tax',
+      totalPrice: 'Total Price',
+      placeOrder: 'Place Order',
+      missingAddressWarning: 'In order to make an order, fill out your profile with correct address, city, etc.',
+      addressIncomplete: 'Address Incomplete'
+    }
+  },
+  ar: {
+    translation: {
+      cartDetails: 'تفاصيل العربة',
+      shipping: 'الشحن',
+      name: 'الاسم',
+      address: 'العنوان',
+      phone: 'الهاتف',
+      paymentMethod: 'طريقة الدفع',
+      paypal: 'PayPal',
+      cashOnDelivery: 'الدفع عند الاستلام (قد يتأخر التوصيل)',
+      notDelivered: 'لم يتم التوصيل',
+      notPaidYet: 'لم يتم الدفع بعد',
+      orderSummary: 'ملخص الطلب',
+      itemsPrice: 'سعر المنتجات (بعد الضريبة)',
+      shipping: 'الشحن',
+      tax: 'الضريبة',
+      totalPrice: 'السعر الإجمالي',
+      placeOrder: 'تأكيد الطلب',
+      missingAddressWarning: 'لإتمام الطلب، يرجى إكمال معلومات ملفك الشخصي بالعنوان والمدينة وغيرها',
+      addressIncomplete: 'العنوان غير مكتمل'
+    }
+  }
+};
 
 const UserCartDetailsPageComponent = ({cartItems, itemsCount, cartSubtotal, userInfo,addToCart, removeFromCart, reduxDispatch , getUser, createOrder}) => {
 
@@ -19,7 +60,9 @@ const UserCartDetailsPageComponent = ({cartItems, itemsCount, cartSubtotal, user
     const [userAddress, setUserAddress] = useState(false);
     const [missingAddress, setMissingAddress] = useState("");
     const [paymentMethod, setPaymentMethod] = useState("pp");
-
+    const {language} = useContext(LanguageContext);
+    const isRtl = language === 'ar';
+    const t = translations[language].translation;
     const navigate = useNavigate();
 
     const changeCount = (productID, count) => {
@@ -79,77 +122,108 @@ const UserCartDetailsPageComponent = ({cartItems, itemsCount, cartSubtotal, user
     }
 
   return (
-    <Container fluid>
-      <Row className="mt-4">
-        <h1>Cart Details</h1>
-        <Col md={8}>
-          <br />
-          <Row>
-            <Col md={6}>
-              <h2>Shipping</h2>
-              <b>Name</b>: {userInfo.name} {userInfo.lastName} <br />
-              <b>Address</b>: {userAddress.address} {userAddress.city} {userAddress.state} {userAddress.zipCode} <br />
-              <b>Phone</b>: {userAddress.phoneNumber}
-            </Col>
-            <Col md={6}>
-              <h2>Payment method</h2>
-              <Form.Select onChange={choosePayment}>
-                <option value="pp">PayPal</option>
-                <option value="cod">
-                  Cash On Delivery (delivery may be delayed)
-                </option>
-              </Form.Select>
-            </Col>
-            <Row>
-              <Col>
-                <Alert className="mt-3" variant="danger">
-                  Not delivered
-                  {missingAddress}
-                </Alert>
-              </Col>
-              <Col>
-                <Alert className="mt-3" variant="success">
-                  Not paid yet
-                </Alert>
-              </Col>
-            </Row>
-          </Row>
-          <br />
-          <h2>Order items</h2>
-          <ListGroup variant="flush">
-            {cartItems.map((item, idx) => (
-              <CartItemComponent item={item} key={idx} removeFromCartHandler={removeFromCartHandler} changeCount={changeCount} />
-            ))}
-          </ListGroup>
-        </Col>
-        <Col md={4}>
-          <ListGroup>
-            <ListGroup.Item>
-              <h3>Order summary</h3>
-            </ListGroup.Item>
-            <ListGroup.Item>
-              Items price (after tax): <span className="fw-bold">${cartSubtotal}</span>
-            </ListGroup.Item>
-            <ListGroup.Item>
-              Shipping: <span className="fw-bold">included</span>
-            </ListGroup.Item>
-            <ListGroup.Item>
-              Tax: <span className="fw-bold">included</span>
-            </ListGroup.Item>
-            <ListGroup.Item className="text-danger">
-              Total price: <span className="fw-bold">${cartSubtotal}</span>
-            </ListGroup.Item>
-            <ListGroup.Item>
-              <div className="d-grid gap-2">
-                <Button size="lg" onClick={orderHandler} variant="danger" type="button" disabled={buttonDisabled}>
-                  Place order
-                </Button>
+    <div 
+      className={`container mx-auto p-6 ${isRtl ? 'rtl' : 'ltr'}`} 
+      dir={isRtl ? 'rtl' : 'ltr'}
+    >
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">{t('cartDetails')}</h1>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2">
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h2 className="text-xl font-semibold mb-4 flex items-center">
+                  <MapPin className="mr-2" /> {t('shipping')}
+                </h2>
+                <div className="space-y-2">
+                  <p>
+                    <span className="font-bold">{t('name')}</span>: {userInfo.name} {userInfo.lastName}
+                  </p>
+                  <p>
+                    <span className="font-bold">{t('address')}</span>: {userAddress.address} {userAddress.city} {userAddress.state} {userAddress.zipCode}
+                  </p>
+                  <p>
+                    <span className="font-bold">{t('phone')}</span>: {userAddress.phoneNumber}
+                  </p>
+                </div>
               </div>
-            </ListGroup.Item>
-          </ListGroup>
-        </Col>
-      </Row>
-    </Container>
+              
+              <div>
+                <h2 className="text-xl font-semibold mb-4 flex items-center">
+                  <CreditCard className="mr-2" /> {t('paymentMethod')}
+                </h2>
+                <select 
+                  onChange={choosePayment} 
+                  className="w-full p-2 border rounded"
+                >
+                  <option value="pp">{t('paypal')}</option>
+                  <option value="cod">{t('cashOnDelivery')}</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+              {missingAddress && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded flex items-center">
+                  <AlertTriangle className="mr-2" />
+                  <span>{t('notDelivered')} {missingAddress}</span>
+                </div>
+              )}
+              <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded flex items-center">
+                <CheckCircle className="mr-2" />
+                {t('notPaidYet')}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow">
+            <h2 className="text-2xl font-semibold p-6 border-b">{t('orderSummary')}</h2>
+            {cartItems.map((item, idx) => (
+              <div key={idx} className="border-b last:border-b-0">
+                <CartItemComponent 
+                  item={item} 
+                  removeFromCartHandler={removeFromCartHandler} 
+                  changeCount={changeCount} 
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-xl font-semibold mb-4">{t('orderSummary')}</h3>
+          <div className="space-y-4">
+            <div className="flex justify-between">
+              <span>{t('itemsPrice')}</span>
+              <span className="font-bold">${cartSubtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>{t('shipping')}</span>
+              <span className="font-bold">{t('included')}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>{t('tax')}</span>
+              <span className="font-bold">{t('included')}</span>
+            </div>
+            <div className="flex justify-between text-red-600 font-bold">
+              <span>{t('totalPrice')}</span>
+              <span>${cartSubtotal.toFixed(2)}</span>
+            </div>
+            <button 
+              onClick={orderHandler}
+              disabled={buttonDisabled}
+              className="w-full py-3 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 flex items-center justify-center"
+            >
+              <ShoppingCart className="mr-2" size={20} />
+              {t('placeOrder')}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

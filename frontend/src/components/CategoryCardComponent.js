@@ -24,7 +24,7 @@ const CategoryCard = ({
 
   return (
     <div 
-      onClick={() => onCategoryClick(category._id)}
+      onClick={() => onCategoryClick(category.name)}
       className="group relative bg-gray-900 rounded-xl overflow-hidden cursor-pointer
                  transform transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
     >
