@@ -38,7 +38,6 @@ const productSchema = mongoose.Schema({
     },
     attrs: [
         {key: {type: String}, value: {type: String}}
-        // [{ key: "color", value: "red" }, { key: "size", value: "1 TB" }]
     ],
     images: [imageSchema],
     reviews: [
@@ -54,6 +53,5 @@ const Product = mongoose.model("Product", productSchema)
 
 productSchema.index({name: "text", description: "text"}, {name: "TextIndex"})
 productSchema.index({"attrs.key":1, "attrs.value":1})
-// productSchema.index({name: -1})
 
 module.exports = Product

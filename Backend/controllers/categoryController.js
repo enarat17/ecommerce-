@@ -1,4 +1,8 @@
 const Category = require("../models/CategoryModel")
+const path = require("path");
+const { v4: uuidv4 } = require("uuid");
+const imageValidate = require("../utils/imageValidate")
+
 
 const getCategories = async (req, res, next) => {
     try {
@@ -11,23 +15,76 @@ const getCategories = async (req, res, next) => {
 
 const newCategory = async (req, res, next) => {
     try {
-        const {category} = req.body
-        if(!category) {
-            res.status(400).send("Category input is required")
+        const { name, description, attrs } = req.body;
+
+        // Check if the category already exists
+        const categoryExists = await Category.findOne({ name });
+        if (categoryExists) {
+            return res.status(400).json({
+                message: "Category already exists",
+                existingCategory: categoryExists,
+            });
         }
-        const categoryExists = await Category.findOne({name: category})
-        if(categoryExists) {
-            res.status(400).send("Category already exists")
-        } else {
-            const categoryCreated = await Category.create({
-                name: category
-            })
-            res.status(201).send({categoryCreated: categoryCreated})
+
+        // Create category object with default or provided values
+        const categoryData = {
+            name,
+            description: description || "default category description",
+            attrs: attrs || [],
+        };
+
+        // Handle image upload if file exists in the request
+        if (req.files && req.files.image) {
+            const validateResult = imageValidate(req.files.image);
+            if (validateResult.error) {
+                return res.status(400).json({ message: validateResult.error });
+            }
+
+            const uploadDirectory = path.resolve(
+                __dirname,
+                "../../frontend",
+                "public",
+                "images",
+                "categories"
+            );
+
+            const image = req.files.image;
+            const fileName = uuidv4() + path.extname(image.name);
+            const uploadPath = path.join(uploadDirectory, fileName);
+
+            // Move the uploaded image to the directory
+            image.mv(uploadPath, function (err) {
+                if (err) {
+                    return res.status(500).json({ message: "Image upload failed", error: err.message });
+                }
+            });
+
+            // Set the image path in the category data
+            categoryData.image = `/images/categories/${fileName}`;
         }
+
+        // Create and save the new category
+        const categoryCreated = await Category.create(categoryData);
+
+        res.status(201).json({
+            message: "Category created successfully",
+            categoryCreated,
+        });
+
     } catch (err) {
-        next(err)
+        console.error("Category Creation Error:", err);
+
+        if (err.name === "ValidationError") {
+            return res.status(400).json({
+                message: "Validation Error",
+                errors: Object.values(err.errors).map((e) => e.message),
+            });
+        }
+
+        next(err);
     }
-}
+};
+
 
 const deleteCategory = async (req, res, next) => {
     // return res.send(req.params.category)
@@ -79,5 +136,7 @@ const saveAttr = async (req, res, next) => {
         next(err)
     }
 }
+
+
 
 module.exports = {getCategories, newCategory, deleteCategory, saveAttr}
