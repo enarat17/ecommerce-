@@ -9,9 +9,13 @@ import {
   Alert,
 } from "react-bootstrap";
 import { Link } from "react-router-dom";
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { changeCategory, setValuesForAttrFromDbSelectForm, setAttributesTableWrapper } from "./utils/utils";
+import { 
+  changeCategory, 
+  setValuesForAttrFromDbSelectForm, 
+  setAttributesTableWrapper 
+} from "./utils/utils";
 
 const CreateProductPageComponent = ({
   createProductApiRequest,
@@ -32,7 +36,9 @@ const CreateProductPageComponent = ({
     message: "",
     error: "",
   });
-  const [categoryChoosen, setCategoryChoosen] = useState("Choose category");
+  const [categoryChoosen, setCategoryChoosen] = useState("");
+  const [isNewCategory, setIsNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
 
   const [newAttrKey, setNewAttrKey] = useState(false);
   const [newAttrValue, setNewAttrValue] = useState(false);
@@ -44,70 +50,131 @@ const CreateProductPageComponent = ({
 
   const navigate = useNavigate();
 
-  const handleSubmit = (event) => {
+  useEffect(() => {
+    // Reset attributes when category changes
+    setAttributesTable([]);
+    setAttributesFromDb([]);
+  }, [categoryChoosen]);
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
     event.stopPropagation();
     const form = event.currentTarget.elements;
-    const formInputs = {
-      name: form.name.value,
-      description: form.description.value,
-      count: form.count.value,
-      price: form.price.value,
-      category: form.category.value,
-      attributesTable: attributesTable,
-    };
-    if (event.currentTarget.checkValidity() === true) {
-      if (images.length > 3) {
-        setIsCreating("to many files");
-        return;
-      }
-      createProductApiRequest(formInputs)
-        .then((data) => {
-          if (images) {
-            if (process.env.NODE_ENV !== "production") {
-              // to do: change to !==
-              uploadImagesApiRequest(images, data.productId)
-                .then((res) => {})
-                .catch((er) =>
-                  setIsCreating(
-                    er.response.data.message
-                      ? er.response.data.message
-                      : er.response.data
-                  )
-                );
-            } else {
-              uploadImagesCloudinaryApiRequest(images, data.productId);
-            }
-          }
-          if (data.message === "product created") navigate("/admin/products");
-        })
-        .catch((er) => {
-          setCreateProductResponseState({
-            error: er.response.data.message
-              ? er.response.data.message
-              : er.response.data,
-          });
-        });
+
+    const finalCategory = isNewCategory ? newCategoryName : categoryChoosen;
+    // Validate category
+    if (!finalCategory) {
+      setCreateProductResponseState({
+        error: "Please choose a category or create a new one",
+      });
+      return;
+    }
+    // Basic form validation
+    if (!form.name.value || !form.description.value || !form.count.value || !form.price.value) {
+      setValidated(true);
+      return;
     }
 
-    setValidated(true);
+    // Validate price format
+    const price = parseFloat(form.price.value);
+    if (isNaN(price) || price <= 0) {
+      setCreateProductResponseState({
+        error: "Please enter a valid price",
+      });
+      return;
+    }
+
+    // Validate count
+    const count = parseInt(form.count.value);
+    if (isNaN(count) || count < 0) {
+      setCreateProductResponseState({
+        error: "Please enter a valid count",
+      });
+      return;
+    }
+
+    try {
+      // Handle new category creation first if needed
+      if (isNewCategory && newCategoryName) {
+        await reduxDispatch(newCategory(newCategoryName));
+      }
+
+      const formInputs = {
+        name: form.name.value,
+        description: form.description.value,
+        count: count,
+        price: price,
+        category: finalCategory,
+        attributesTable: attributesTable,
+      };
+
+      // Validate images
+      if (images) {
+        if (images.length > 3) {
+          setIsCreating("Maximum 3 images allowed");
+          return;
+        }
+        // Add basic image validation
+        for (let file of images) {
+          if (file.size > 1024 * 1024 * 5) { // 5MB limit
+            setIsCreating("Image size should be less than 5MB");
+            return;
+          }
+          if (!file.type.startsWith('image/')) {
+            setIsCreating("Please upload only image files");
+            return;
+          }
+        }
+      }
+
+      const data = await createProductApiRequest(formInputs);
+      
+      if (images) {
+        if (process.env.NODE_ENV !== "production") {
+          await uploadImagesApiRequest(images, data.productId);
+        } else {
+          await uploadImagesCloudinaryApiRequest(images, data.productId);
+        }
+      }
+
+      if (data.message === "product created") {
+        navigate("/admin/products");
+      }
+
+    } catch (err) {
+      setCreateProductResponseState({
+        error: err.response?.data?.message || err.response?.data || "An error occurred",
+      });
+    }
+  };
+
+  const newCategoryHandler = (e) => {
+    if (e.keyCode === 13) {
+      const value = e.target.value.trim();
+      if (value) {
+        setIsNewCategory(true);
+        setNewCategoryName(value);
+        setCategoryChoosen(value);
+        // Reset the category select
+        const element = document.getElementById("cats");
+        if (element) element.value = "";
+      }
+    }
+  };
+
+  const handleCategorySelect = (e) => {
+    const selectedCategory = e.target.value;
+    if (selectedCategory) {
+      setIsNewCategory(false);
+      setNewCategoryName("");
+      changeCategory(e, categories, setAttributesFromDb, setCategoryChoosen);
+    }
   };
 
   const uploadHandler = (images) => {
     setImages(images);
   };
 
-  const newCategoryHandler = (e) => {
-    if (e.keyCode && e.keyCode === 13 && e.target.value) {
-      reduxDispatch(newCategory(e.target.value));
-      setTimeout(() => {
-        let element = document.getElementById("cats");
-        setCategoryChoosen(e.target.value);
-        element.value = e.target.value;
-        e.target.value = "";
-      }, 200);
-    }
-  };
 
   const deleteCategoryHandler = () => {
     let element = document.getElementById("cats");
@@ -159,79 +226,126 @@ const CreateProductPageComponent = ({
 
   return (
     <Container>
-      <Row className="justify-content-md-center mt-5">
-        <Col md={1}>
-          <Link to="/admin/products" className="btn btn-info my-3">
-            Go Back
-          </Link>
-        </Col>
-        <Col md={6}>
-          <h1>Create a new product</h1>
-          <Form noValidate validated={validated} onSubmit={handleSubmit} onKeyDown={(e) => checkKeyDown(e)} >
-            <Form.Group className="mb-3" controlId="formBasicName">
-              <Form.Label>Name</Form.Label>
-              <Form.Control name="name" required type="text" />
-            </Form.Group>
+    <Row className="justify-content-md-center mt-5">
+      <Col md={1}>
+        <Link to="/admin/products" className="btn btn-info my-3">
+          Go Back
+        </Link>
+      </Col>
+      <Col md={6}>
+        <h1>Create a new product</h1>
+        {createProductResponseState.error && (
+          <Alert variant="danger">
+            {createProductResponseState.error}
+          </Alert>
+        )}
+        <Form noValidate validated={validated} onSubmit={handleSubmit} onKeyDown={(e) => checkKeyDown(e)}>
+          <Form.Group className="mb-3" controlId="formBasicName">
+            <Form.Label>Name</Form.Label>
+            <Form.Control 
+              name="name" 
+              required 
+              type="text"
+              minLength={3}
+              maxLength={100}
+            />
+            <Form.Control.Feedback type="invalid">
+              Please provide a valid product name (3-100 characters)
+            </Form.Control.Feedback>
+          </Form.Group>
 
-            <Form.Group
-              className="mb-3"
-              controlId="exampleForm.ControlTextarea1"
+          <Form.Group className="mb-3" controlId="exampleForm.ControlTextarea1">
+            <Form.Label>Description</Form.Label>
+            <Form.Control
+              name="description"
+              required
+              as="textarea"
+              rows={3}
+              minLength={10}
+              maxLength={1000}
+            />
+            <Form.Control.Feedback type="invalid">
+              Please provide a valid description (10-1000 characters)
+            </Form.Control.Feedback>
+          </Form.Group>
+
+          <Form.Group className="mb-3" controlId="formBasicCount">
+            <Form.Label>Count in stock</Form.Label>
+            <Form.Control 
+              name="count" 
+              required 
+              type="number"
+              min={0}
+            />
+            <Form.Control.Feedback type="invalid">
+              Please provide a valid count (minimum 0)
+            </Form.Control.Feedback>
+          </Form.Group>
+
+          <Form.Group className="mb-3" controlId="formBasicPrice">
+            <Form.Label>Price</Form.Label>
+            <Form.Control 
+              name="price" 
+              required 
+              type="number"
+              min={0.01}
+              step={0.01}
+            />
+            <Form.Control.Feedback type="invalid">
+              Please provide a valid price (minimum 0.01)
+            </Form.Control.Feedback>
+          </Form.Group>
+
+          <Form.Group className="mb-3" controlId="formBasicCategory">
+            <Form.Label>
+              Category
+              {categoryChoosen && !isNewCategory && (
+                <CloseButton onClick={deleteCategoryHandler} />
+              )}
+            </Form.Label>
+            <Form.Select
+              id="cats"
+              name="category"
+              aria-label="Default select example"
+              onChange={handleCategorySelect}
+              disabled={isNewCategory}
             >
-              <Form.Label>Description</Form.Label>
-              <Form.Control
-                name="description"
-                required
-                as="textarea"
-                rows={3}
-              />
-            </Form.Group>
-            <Form.Group className="mb-3" controlId="formBasicCount">
-              <Form.Label>Count in stock</Form.Label>
-              <Form.Control name="count" required type="number" />
-            </Form.Group>
-            <Form.Group className="mb-3" controlId="formBasicPrice">
-              <Form.Label>Price</Form.Label>
-              <Form.Control name="price" required type="text" />
-            </Form.Group>
-            <Form.Group className="mb-3" controlId="formBasicCategory">
-              <Form.Label>
-                Category
-                <CloseButton onClick={deleteCategoryHandler} />(
-                <small>remove selected</small>)
-              </Form.Label>
-              <Form.Select
-                id="cats"
-                required
-                name="category"
-                aria-label="Default select example"
-                onChange={(e) =>
-                  changeCategory(
-                    e,
-                    categories,
-                    setAttributesFromDb,
-                    setCategoryChoosen
-                  )
-                }
-              >
-                <option value="">Choose category</option>
-                {categories.map((category, idx) => (
-                  <option key={idx} value={category.name}>
-                    {category.name}
-                  </option>
-                ))}
-              </Form.Select>
-            </Form.Group>
+              <option value="">Choose category</option>
+              {categories.map((category, idx) => (
+                <option key={idx} value={category.name}>
+                  {category.name}
+                </option>
+              ))}
+            </Form.Select>
+          </Form.Group>
 
-            <Form.Group className="mb-3" controlId="formBasicNewCategory">
-              <Form.Label>
-                Or create a new category (e.g. Computers/Laptops/Intel){" "}
-              </Form.Label>
-              <Form.Control
-                onKeyUp={newCategoryHandler}
-                name="newCategory"
-                type="text"
-              />
-            </Form.Group>
+          <Form.Group className="mb-3" controlId="formBasicNewCategory">
+            <Form.Label>
+              Or create a new category (e.g. Computers/Laptops/Intel)
+            </Form.Label>
+            <Form.Control
+              onKeyUp={newCategoryHandler}
+              name="newCategory"
+              type="text"
+              disabled={categoryChoosen && !isNewCategory}
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              placeholder="Type category name and press Enter"
+            />
+            {isNewCategory && (
+              <Button 
+                variant="link" 
+                className="p-0 mt-1"
+                onClick={() => {
+                  setIsNewCategory(false);
+                  setNewCategoryName("");
+                  setCategoryChoosen("");
+                }}
+              >
+                Cancel new category
+              </Button>
+            )}
+          </Form.Group>
 
             {attributesFromDb.length > 0 && (
               <Row className="mt-5">

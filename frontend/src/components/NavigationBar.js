@@ -179,7 +179,7 @@ const NavigationBar = ({
                 </div>
               </div>
 
-              <a href="/about" className="text-gray-300 hover:text-white px-3 py-2">
+              <a href="/about-us" className="text-gray-300 hover:text-white px-3 py-2">
                 {text.about}
               </a>
               <a href="/contact" className="text-gray-300 hover:text-white px-3 py-2">
