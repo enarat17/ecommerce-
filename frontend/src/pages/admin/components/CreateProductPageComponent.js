@@ -23,7 +23,6 @@ const CreateProductPageComponent = ({
   uploadImagesCloudinaryApiRequest,
   categories,
   reduxDispatch,
-  newCategory,
   deleteCategory,
   saveAttributeToCatDoc
 }) => {
@@ -37,8 +36,6 @@ const CreateProductPageComponent = ({
     error: "",
   });
   const [categoryChoosen, setCategoryChoosen] = useState("");
-  const [isNewCategory, setIsNewCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState("");
 
   const [newAttrKey, setNewAttrKey] = useState(false);
   const [newAttrValue, setNewAttrValue] = useState(false);
@@ -61,11 +58,10 @@ const CreateProductPageComponent = ({
     event.stopPropagation();
     const form = event.currentTarget.elements;
 
-    const finalCategory = isNewCategory ? newCategoryName : categoryChoosen;
     // Validate category
-    if (!finalCategory) {
+    if (!categoryChoosen) {
       setCreateProductResponseState({
-        error: "Please choose a category or create a new one",
+        error: "Please choose a category",
       });
       return;
     }
@@ -94,17 +90,12 @@ const CreateProductPageComponent = ({
     }
 
     try {
-      // Handle new category creation first if needed
-      if (isNewCategory && newCategoryName) {
-        await reduxDispatch(newCategory(newCategoryName));
-      }
-
       const formInputs = {
         name: form.name.value,
         description: form.description.value,
         count: count,
         price: price,
-        category: finalCategory,
+        category: categoryChoosen,
         attributesTable: attributesTable,
       };
 
@@ -148,25 +139,9 @@ const CreateProductPageComponent = ({
     }
   };
 
-  const newCategoryHandler = (e) => {
-    if (e.keyCode === 13) {
-      const value = e.target.value.trim();
-      if (value) {
-        setIsNewCategory(true);
-        setNewCategoryName(value);
-        setCategoryChoosen(value);
-        // Reset the category select
-        const element = document.getElementById("cats");
-        if (element) element.value = "";
-      }
-    }
-  };
-
   const handleCategorySelect = (e) => {
     const selectedCategory = e.target.value;
     if (selectedCategory) {
-      setIsNewCategory(false);
-      setNewCategoryName("");
       changeCategory(e, categories, setAttributesFromDb, setCategoryChoosen);
     }
   };
@@ -175,7 +150,6 @@ const CreateProductPageComponent = ({
     setImages(images);
   };
 
-
   const deleteCategoryHandler = () => {
     let element = document.getElementById("cats");
     reduxDispatch(deleteCategory(element.value));
@@ -183,169 +157,139 @@ const CreateProductPageComponent = ({
   };
 
   const attributeValueSelected = (e) => {
-      if (e.target.value !== "Choose attribute value") {
-          setAttributesTableWrapper(attrKey.current.value, e.target.value, setAttributesTable);
-      }
+    if (e.target.value !== "Choose attribute value") {
+      setAttributesTableWrapper(attrKey.current.value, e.target.value, setAttributesTable);
+    }
   }
 
   const deleteAttribute = (key) => {
-      setAttributesTable((table) => table.filter((item) => item.key !== key));
+    setAttributesTable((table) => table.filter((item) => item.key !== key));
   }
 
   const newAttrKeyHandler = (e) => {
-      e.preventDefault();
-      setNewAttrKey(e.target.value);
-      addNewAttributeManually(e);
+    e.preventDefault();
+    setNewAttrKey(e.target.value);
+    addNewAttributeManually(e);
   }
 
   const newAttrValueHandler = (e) => {
-      e.preventDefault();
-      setNewAttrValue(e.target.value);
-      addNewAttributeManually(e);
-
+    e.preventDefault();
+    setNewAttrValue(e.target.value);
+    addNewAttributeManually(e);
   }
 
   const addNewAttributeManually = (e) => {
-      if (e.keyCode && e.keyCode === 13) {
-           if (newAttrKey && newAttrValue) {
-              reduxDispatch(saveAttributeToCatDoc(newAttrKey, newAttrValue, categoryChoosen));
-               setAttributesTableWrapper(newAttrKey, newAttrValue, setAttributesTable);
-               e.target.value = "";
-               createNewAttrKey.current.value = "";
-               createNewAttrVal.current.value = "";
-               setNewAttrKey(false);
-               setNewAttrValue(false);
-           }
-
+    if (e.keyCode && e.keyCode === 13) {
+      if (newAttrKey && newAttrValue) {
+        reduxDispatch(saveAttributeToCatDoc(newAttrKey, newAttrValue, categoryChoosen));
+        setAttributesTableWrapper(newAttrKey, newAttrValue, setAttributesTable);
+        e.target.value = "";
+        createNewAttrKey.current.value = "";
+        createNewAttrVal.current.value = "";
+        setNewAttrKey(false);
+        setNewAttrValue(false);
       }
+    }
   }
 
   const checkKeyDown = (e) => {
-      if (e.code === "Enter") e.preventDefault();
+    if (e.code === "Enter") e.preventDefault();
   }
 
   return (
     <Container>
-    <Row className="justify-content-md-center mt-5">
-      <Col md={1}>
-        <Link to="/admin/products" className="btn btn-info my-3">
-          Go Back
-        </Link>
-      </Col>
-      <Col md={6}>
-        <h1>Create a new product</h1>
-        {createProductResponseState.error && (
-          <Alert variant="danger">
-            {createProductResponseState.error}
-          </Alert>
-        )}
-        <Form noValidate validated={validated} onSubmit={handleSubmit} onKeyDown={(e) => checkKeyDown(e)}>
-          <Form.Group className="mb-3" controlId="formBasicName">
-            <Form.Label>Name</Form.Label>
-            <Form.Control 
-              name="name" 
-              required 
-              type="text"
-              minLength={3}
-              maxLength={100}
-            />
-            <Form.Control.Feedback type="invalid">
-              Please provide a valid product name (3-100 characters)
-            </Form.Control.Feedback>
-          </Form.Group>
+      <Row className="justify-content-md-center mt-5">
+        <Col md={1}>
+          <Link to="/admin/products" className="btn btn-info my-3">
+            Go Back
+          </Link>
+        </Col>
+        <Col md={6}>
+          <h1>Create a new product</h1>
+          {createProductResponseState.error && (
+            <Alert variant="danger">
+              {createProductResponseState.error}
+            </Alert>
+          )}
+          <Form noValidate validated={validated} onSubmit={handleSubmit} onKeyDown={(e) => checkKeyDown(e)}>
+            <Form.Group className="mb-3" controlId="formBasicName">
+              <Form.Label>Name</Form.Label>
+              <Form.Control 
+                name="name" 
+                required 
+                type="text"
+                minLength={3}
+                maxLength={100}
+              />
+              <Form.Control.Feedback type="invalid">
+                Please provide a valid product name (3-100 characters)
+              </Form.Control.Feedback>
+            </Form.Group>
 
-          <Form.Group className="mb-3" controlId="exampleForm.ControlTextarea1">
-            <Form.Label>Description</Form.Label>
-            <Form.Control
-              name="description"
-              required
-              as="textarea"
-              rows={3}
-              minLength={10}
-              maxLength={1000}
-            />
-            <Form.Control.Feedback type="invalid">
-              Please provide a valid description (10-1000 characters)
-            </Form.Control.Feedback>
-          </Form.Group>
+            <Form.Group className="mb-3" controlId="exampleForm.ControlTextarea1">
+              <Form.Label>Description</Form.Label>
+              <Form.Control
+                name="description"
+                required
+                as="textarea"
+                rows={3}
+                minLength={10}
+                maxLength={1000}
+              />
+              <Form.Control.Feedback type="invalid">
+                Please provide a valid description (10-1000 characters)
+              </Form.Control.Feedback>
+            </Form.Group>
 
-          <Form.Group className="mb-3" controlId="formBasicCount">
-            <Form.Label>Count in stock</Form.Label>
-            <Form.Control 
-              name="count" 
-              required 
-              type="number"
-              min={0}
-            />
-            <Form.Control.Feedback type="invalid">
-              Please provide a valid count (minimum 0)
-            </Form.Control.Feedback>
-          </Form.Group>
+            <Form.Group className="mb-3" controlId="formBasicCount">
+              <Form.Label>Count in stock</Form.Label>
+              <Form.Control 
+                name="count" 
+                required 
+                type="number"
+                min={0}
+              />
+              <Form.Control.Feedback type="invalid">
+                Please provide a valid count (minimum 0)
+              </Form.Control.Feedback>
+            </Form.Group>
 
-          <Form.Group className="mb-3" controlId="formBasicPrice">
-            <Form.Label>Price</Form.Label>
-            <Form.Control 
-              name="price" 
-              required 
-              type="number"
-              min={0.01}
-              step={0.01}
-            />
-            <Form.Control.Feedback type="invalid">
-              Please provide a valid price (minimum 0.01)
-            </Form.Control.Feedback>
-          </Form.Group>
+            <Form.Group className="mb-3" controlId="formBasicPrice">
+              <Form.Label>Price</Form.Label>
+              <Form.Control 
+                name="price" 
+                required 
+                type="number"
+                min={0.01}
+                step={0.01}
+              />
+              <Form.Control.Feedback type="invalid">
+                Please provide a valid price (minimum 0.01)
+              </Form.Control.Feedback>
+            </Form.Group>
 
-          <Form.Group className="mb-3" controlId="formBasicCategory">
-            <Form.Label>
-              Category
-              {categoryChoosen && !isNewCategory && (
-                <CloseButton onClick={deleteCategoryHandler} />
-              )}
-            </Form.Label>
-            <Form.Select
-              id="cats"
-              name="category"
-              aria-label="Default select example"
-              onChange={handleCategorySelect}
-              disabled={isNewCategory}
-            >
-              <option value="">Choose category</option>
-              {categories.map((category, idx) => (
-                <option key={idx} value={category.name}>
-                  {category.name}
-                </option>
-              ))}
-            </Form.Select>
-          </Form.Group>
-
-          <Form.Group className="mb-3" controlId="formBasicNewCategory">
-            <Form.Label>
-              Or create a new category (e.g. Computers/Laptops/Intel)
-            </Form.Label>
-            <Form.Control
-              onKeyUp={newCategoryHandler}
-              name="newCategory"
-              type="text"
-              disabled={categoryChoosen && !isNewCategory}
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              placeholder="Type category name and press Enter"
-            />
-            {isNewCategory && (
-              <Button 
-                variant="link" 
-                className="p-0 mt-1"
-                onClick={() => {
-                  setIsNewCategory(false);
-                  setNewCategoryName("");
-                  setCategoryChoosen("");
-                }}
+            <Form.Group className="mb-3" controlId="formBasicCategory">
+              <Form.Label>
+                Category
+                {categoryChoosen && (
+                  <CloseButton onClick={deleteCategoryHandler} />
+                )}
+              </Form.Label>
+              <Form.Select
+                id="cats"
+                name="category"
+                aria-label="Default select example"
+                onChange={handleCategorySelect}
+                required
               >
-                Cancel new category
-              </Button>
-            )}
-          </Form.Group>
+                <option value="">Choose category</option>
+                {categories.map((category, idx) => (
+                  <option key={idx} value={category.name}>
+                    {category.name}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
 
             {attributesFromDb.length > 0 && (
               <Row className="mt-5">
@@ -368,13 +312,10 @@ const CreateProductPageComponent = ({
                   </Form.Group>
                 </Col>
                 <Col md={6}>
-                  <Form.Group
-                    className="mb-3"
-                    controlId="formBasicAttributeValue"
-                  >
+                  <Form.Group className="mb-3" controlId="formBasicAttributeValue">
                     <Form.Label>Attribute value</Form.Label>
                     <Form.Select
-                    onChange={attributeValueSelected}
+                      onChange={attributeValueSelected}
                       name="atrrVal"
                       aria-label="Default select example"
                       ref={attrVal}
@@ -416,9 +357,9 @@ const CreateProductPageComponent = ({
                 <Form.Group className="mb-3" controlId="formBasicNewAttribute">
                   <Form.Label>Create new attribute</Form.Label>
                   <Form.Control
-                  ref={createNewAttrKey}
-                    disabled={["", "Choose category"].includes(categoryChoosen)}
-                    placeholder="first choose or create category"
+                    ref={createNewAttrKey}
+                    disabled={!categoryChoosen}
+                    placeholder="first choose category"
                     name="newAttrValue"
                     type="text"
                     onKeyUp={newAttrKeyHandler}
@@ -426,15 +367,12 @@ const CreateProductPageComponent = ({
                 </Form.Group>
               </Col>
               <Col md={6}>
-                <Form.Group
-                  className="mb-3"
-                  controlId="formBasicNewAttributeValue"
-                >
+                <Form.Group className="mb-3" controlId="formBasicNewAttributeValue">
                   <Form.Label>Attribute value</Form.Label>
                   <Form.Control
-                  ref={createNewAttrVal}
-                    disabled={["", "Choose category"].includes(categoryChoosen)}
-                    placeholder="first choose or create category"
+                    ref={createNewAttrVal}
+                    disabled={!categoryChoosen}
+                    placeholder="first choose category"
                     required={newAttrKey}
                     name="newAttrValue"
                     type="text"
@@ -445,13 +383,11 @@ const CreateProductPageComponent = ({
             </Row>
 
             <Alert show={newAttrKey && newAttrValue} variant="primary">
-              After typing attribute key and value press enterr on one of the
-              field
+              After typing attribute key and value press enter on one of the fields
             </Alert>
 
             <Form.Group controlId="formFileMultiple" className="mb-3 mt-3">
               <Form.Label>Images</Form.Label>
-
               <Form.Control
                 required
                 type="file"

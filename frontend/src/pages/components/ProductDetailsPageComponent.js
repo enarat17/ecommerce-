@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef, useContext } from "react";
-import { Rating } from "react-simple-star-rating";
-import ImageZoom from "js-image-zoom";
+import StarRating from "../../components/StarRating";
 import { useParams } from "react-router-dom";
 import { LanguageContext } from "../../context/LanguageContext";
 import MetaComponent from "../../components/MetaComponent";
@@ -244,15 +243,14 @@ const ProductDetailsPageComponent = ({
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h1 className="text-3xl font-bold mb-4">{product.name}</h1>
               
-              <div className="flex items-center gap-2 mb-4">
-                <div className="inline-flex">
-                  <Rating
-                    readonly
-                    size={20}
-                    initialValue={product.rating}
-                    className="flex-row"
-                  />
-                </div>
+              <div className="flex items-center flex-col gap-2 mb-4">
+                <div className={`inline-flex`}>
+                <StarRating
+                  rating={product.rating}
+                  readonly
+                  size={20}
+                />
+                  </div>
                 <span className="text-gray-600">({product.reviewsNumber})</span>
               </div>
 
@@ -310,12 +308,11 @@ const ProductDetailsPageComponent = ({
                 <div key={idx} className="border-b border-gray-200 pb-6">
                   <div className="font-medium">{review.user.name}</div>
                   <div className="flex items-center gap-2 my-2">
-                    <Rating 
-                      readonly 
-                      size={20} 
-                      initialValue={review.rating}
-                      className="flex-row"
-                    />
+                  <StarRating 
+                    rating={review.rating}
+                    readonly
+                    size={20}
+                  />
                     <span className="text-gray-500 text-sm">
                       {review.createdAt.substring(0, 10)}
                     </span>
